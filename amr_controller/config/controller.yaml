@@ -1,0 +1,20 @@
+amr_controller:
+    ros__parameters:
+
+        # Goal Pose
+        x_goal: 1.0         # meters
+        y_goal: 1.0         # meters
+        theta_goal: 0.0     # radians
+
+        # Controller Gains
+        k_rho: 0.4          # Forward Gain 
+        k_alpha: 0.8        # Heading Angle Gain
+        k_beta: -0.15       # Orientation Gain
+
+        # Goal Tolerance
+        rho_tol: 0.05       # Stop within 5 cm
+        beta_tol: 0.05      # Stop within 0.05 rad
+
+        # Hardware Limits of TurtleBot3
+        v_max: 0.22         # m/s  
+        w_max: 2.84         # rad/s
