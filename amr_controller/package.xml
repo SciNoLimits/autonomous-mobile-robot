@@ -5,7 +5,7 @@
   <version>0.0.0</version>
   <description>Autonomous Mobile Robot Controller</description>
   <maintainer email="prazwaldutta7@gmail.com">scinolimits</maintainer>
-  <license>MIT License</license>
+  <license>MIT</license>
 
   <depend>rclpy</depend>
   <depend>geometry_msgs</depend>
