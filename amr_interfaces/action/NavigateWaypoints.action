@@ -1,0 +1,11 @@
+# Goal
+geometry_msgs/Pose2D[] waypoints
+---
+# Result
+bool success
+uint32 waypoints_completed
+string message
+---
+# Feedback
+uint32 current_waypoint
+float32 distance_remaining
