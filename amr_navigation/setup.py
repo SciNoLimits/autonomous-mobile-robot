@@ -24,6 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'waypoint_server = amr_navigation.waypoint_server:main',
         ],
     },
 )
