@@ -3,6 +3,7 @@ import time
 
 import rclpy
 from rclpy.node import Node
+from std_msgs.msg import Bool
 from geometry_msgs.msg import Pose2D
 from nav_msgs.msg import Odometry
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
@@ -21,6 +22,8 @@ class WaypointServer(Node):
         
         self.odom_subscriber_ = self.create_subscription(msg_type=Odometry, topic='/odom', callback=self.odom_callback, qos_profile=10)
         
+        self.goal_reached_subscriber_ = self.create_subscription(msg_type=Bool, topic='/amr_controller/goal', callback=self.goal_reached_callback, qos_profile=10)
+        
         self.action_server = ActionServer(node=self,
                                           action_type=NavigateWaypoints,
                                           action_name='navigate_waypoints',
@@ -31,6 +34,11 @@ class WaypointServer(Node):
                                           )
         
         self.get_logger().info("Waypoint Server is up and running.")
+       
+       
+    def goal_reached_callback(self, msg: Bool):
+        """Receive goal completion status from the controller."""
+        self.goal_reached = msg.data
         
         
     def odom_callback(self, msg: Odometry):
@@ -123,6 +131,8 @@ class WaypointServer(Node):
                 result.message = 'Navigation cancelled.'
 
                 return result
+            
+            self.goal_reached = False
 
             self.publish_goal(waypoint)
 
@@ -145,7 +155,7 @@ class WaypointServer(Node):
 
                 goal_handle.publish_feedback(feedback_msg)
 
-                if distance <= 0.05:
+                if self.goal_reached:
                     break
 
                 time.sleep(0.1)

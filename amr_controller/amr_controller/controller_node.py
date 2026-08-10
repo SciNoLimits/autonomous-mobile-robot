@@ -3,6 +3,7 @@
 import math
 import rclpy
 from rclpy.node import Node
+from std_msgs.msg import Bool
 from nav_msgs.msg import Odometry
 from geometry_msgs.msg import TwistStamped, Pose2D
 from tf_transformations import euler_from_quaternion
@@ -60,6 +61,8 @@ class AMRController(Node):
         
         self.publisher_ = self.create_publisher(msg_type=TwistStamped, topic='/cmd_vel', qos_profile=10)
         
+        self.goal_reached_publisher_ = self.create_publisher(msg_type=Bool, topic='/amr_controller/goal_reached', qos_profile=10)
+        
         self.get_logger().info(
             message=f"Controller Started. Goal: Pose = ({self.x_goal:.3f}, {self.y_goal:.3f}), Orientation = {self.theta_goal:.3f}"
         )
@@ -83,6 +86,10 @@ class AMRController(Node):
         self.x_goal = msg.x
         self.y_goal = msg.y
         self.theta_goal = msg.theta
+        
+        status = Bool()
+        status.data = False
+        self.goal_reached_publisher_.publish(status)
 
         self.get_logger().info(
             f"New goal received: "
@@ -156,6 +163,11 @@ class AMRController(Node):
             if abs(beta) < self.beta_tol:
                 self.stop_robot()
                 self.control_timer.cancel()
+                
+                status = Bool()
+                status.data = True
+                self.goal_reached_publisher_.publish(status)
+                
                 self.get_logger().info(f"Goal reached. rho = {rho:.4f}, beta = {beta:.4f}")
                 return
             else:
