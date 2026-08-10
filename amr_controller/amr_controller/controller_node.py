@@ -4,7 +4,7 @@ import math
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Odometry
-from geometry_msgs.msg import TwistStamped
+from geometry_msgs.msg import TwistStamped, Pose2D
 from tf_transformations import euler_from_quaternion
 from rclpy.executors import ExternalShutdownException
 
@@ -18,8 +18,8 @@ class AMRController(Node):
         rclpy.get_default_context().on_shutdown(self.stop_robot)
         
         # Goal Pose Paramater Declaration
-        self.declare_parameter("x_goal", 1.0)       # meters
-        self.declare_parameter("y_goal", 1.0)       # meters
+        self.declare_parameter("x_goal", 0.0)       # meters
+        self.declare_parameter("y_goal", 0.0)       # meters
         self.declare_parameter("theta_goal", 0.0)   # radians
         
         self.x_goal = self.get_parameter("x_goal").get_parameter_value().double_value
@@ -56,6 +56,8 @@ class AMRController(Node):
         
         self.subscriber_ = self.create_subscription(msg_type=Odometry, topic='/odom', callback=self.odom_callback, qos_profile=10)
         
+        self.goal_subscriber_ = self.create_subscription(msg_type=Pose2D, topic='/amr_controller/goal', callback=self.goal_callback, qos_profile=10)
+        
         self.publisher_ = self.create_publisher(msg_type=TwistStamped, topic='/cmd_vel', qos_profile=10)
         
         self.get_logger().info(
@@ -74,6 +76,20 @@ class AMRController(Node):
         orientation_list = [orientation_q.x, orientation_q.y, orientation_q.z, orientation_q.w]
         (_, _, yaw) = euler_from_quaternion(orientation_list)
         self.yaw = yaw
+        
+        
+    def goal_callback(self, msg: Pose2D):
+        """Update the controller target pose."""
+        self.x_goal = msg.x
+        self.y_goal = msg.y
+        self.theta_goal = msg.theta
+
+        self.get_logger().info(
+            f"New goal received: "
+            f"({self.x_goal:.3f}, "
+            f"{self.y_goal:.3f}, "
+            f"{self.theta_goal:.3f})"
+        )
         
     
     def compute_error(self):
