@@ -28,6 +28,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'amr_controller = amr_controller.controller_node:main',
         ],
     },
 )
