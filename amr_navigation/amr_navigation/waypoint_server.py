@@ -22,7 +22,7 @@ class WaypointServer(Node):
         
         self.odom_subscriber_ = self.create_subscription(msg_type=Odometry, topic='/odom', callback=self.odom_callback, qos_profile=10)
         
-        self.goal_reached_subscriber_ = self.create_subscription(msg_type=Bool, topic='/amr_controller/goal', callback=self.goal_reached_callback, qos_profile=10)
+        self.goal_reached_subscriber_ = self.create_subscription(msg_type=Bool, topic='/amr_controller/goal_reached', callback=self.goal_reached_callback, qos_profile=10)
         
         self.action_server = ActionServer(node=self,
                                           action_type=NavigateWaypoints,
