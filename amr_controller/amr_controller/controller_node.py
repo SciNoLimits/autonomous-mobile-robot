@@ -15,21 +15,38 @@ class AMRController(Node):
     def __init__(self, name: str):
         super().__init__(node_name=name)
         
+        # Register the cleanup callback before spin handles any shutdown events
+        rclpy.get_default_context().on_shutdown(self.stop_robot)
+        
         # Goal Pose Paramater Declaration
+        self.declare_parameter("x_goal", 1.0)       # meters
+        self.declare_parameter("y_goal", 1.0)       # meters
+        self.declare_parameter("theta_goal", 0.0)   # radians
+        
         self.x_goal = self.get_parameter("x_goal").get_parameter_value().double_value
         self.y_goal = self.get_parameter("y_goal").get_parameter_value().double_value
         self.theta_goal = self.get_parameter("theta_goal").get_parameter_value().double_value
 
         # Controller Gains
+        self.declare_parameter("k_rho", 0.4)
+        self.declare_parameter("k_alpha", 0.8)
+        self.declare_parameter("k_beta", -0.15)
+        
         self.k_rho = self.get_parameter("k_rho").get_parameter_value().double_value
         self.k_alpha = self.get_parameter("k_alpha").get_parameter_value().double_value
         self.k_beta = self.get_parameter("k_beta").get_parameter_value().double_value
 
         # Goal Tolerance
+        self.declare_parameter("rho_tol", 0.05)  # Stop within 5 cm
+        self.declare_parameter("beta_tol", 0.02)  # Stop within 0.02 radians (~1.15 degrees)
+        
         self.rho_tol = self.get_parameter("rho_tol").get_parameter_value().double_value
         self.beta_tol = self.get_parameter("beta_tol").get_parameter_value().double_value
 
         # Hardware Limits of TurtleBot3
+        self.declare_parameter("v_max", 0.22)  # m/s
+        self.declare_parameter("w_max", 2.84)  # rad/s
+        
         self.v_max = self.get_parameter("v_max").get_parameter_value().double_value
         self.w_max = self.get_parameter("w_max").get_parameter_value().double_value
         
@@ -110,10 +127,24 @@ class AMRController(Node):
         """Main control loop that computes and publishes control commands based on the current robot state and goal."""
         rho, alpha, beta = self.compute_error()
         
-        if rho < self.rho_tol and abs(beta) < self.beta_tol:
-            self.stop_robot()
-            self.get_logger().info(f"Goal reached. rho = {rho:.4f}, beta = {beta:.4f}")
-            return
+        # if rho < self.rho_tol and abs(beta) < self.beta_tol:
+        #     self.stop_robot()
+        #     self.control_timer.cancel()
+        #     self.get_logger().info(f"Goal reached. rho = {rho:.4f}, beta = {beta:.4f}")
+        #     return
+        
+        if rho < self.rho_tol:
+            if abs(beta) < self.beta_tol:
+                self.stop_robot()
+                self.control_timer.cancel()
+                self.get_logger().info(f"Goal reached. rho = {rho:.4f}, beta = {beta:.4f}")
+                return
+            else:
+                # Aligning to the goal orientation
+                v = 0.0
+                w = self.k_beta * beta
+                w = max(-self.w_max, min(self.w_max, w))  # Saturate angular velocity
+
         
         v, w = self.compute_control(rho, alpha, beta)
         v, w = self.saturate(v, w)
@@ -137,13 +168,12 @@ def main(args=None):
 
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
-    except ExternalShutdownException:
-        sys.exit(1)
     finally:
         node.destroy_node()
-        rclpy.shutdown()
+        if rclpy.ok():
+            rclpy.shutdown()
         
 
 if __name__ == "__main__":
