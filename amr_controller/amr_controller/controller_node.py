@@ -91,6 +91,10 @@ class AMRController(Node):
             f"{self.theta_goal:.3f})"
         )
         
+        # Restart control loop if it stopped after reaching the previous goal
+        if self.control_timer.is_canceled():
+            self.control_timer.reset()
+        
     
     def compute_error(self):
         """
