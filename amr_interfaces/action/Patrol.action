@@ -1,0 +1,12 @@
+# Goal
+geometry_msgs/Pose2D[] waypoints
+uint32 patrol_cycles
+---
+# Result
+bool success
+uint32 cycles_completed
+string message
+---
+# Feedback
+uint32 current_cycle
+uint32 current_waypoint
