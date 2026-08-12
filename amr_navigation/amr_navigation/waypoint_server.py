@@ -11,6 +11,7 @@ from nav_msgs.msg import Odometry
 from rclpy.action import ActionServer, CancelResponse, GoalResponse
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
+from tf_transformations import euler_from_quaternion
 from amr_interfaces.action import NavigateWaypoints # type: ignore
 
 class WaypointServer(Node):
@@ -19,6 +20,8 @@ class WaypointServer(Node):
         
         self.current_x = 0.0
         self.current_y = 0.0
+        self.current_theta = 0.0
+        self.goal_reached = False
         
         self.goal_publisher_ = self.create_publisher(msg_type=Pose2D, topic='/amr_controller/goal', qos_profile=10)
         
@@ -47,6 +50,8 @@ class WaypointServer(Node):
         """Update the robot's current position."""
         self.current_x = msg.pose.pose.position.x
         self.current_y = msg.pose.pose.position.y
+        q = msg.pose.pose.orientation
+        _, _, self.current_theta = euler_from_quaternion([q.x, q.y, q.z, q.w])
         
     def goal_callback(self, goal_request):
         """Accept a navigation goal if it contains waypoints."""
@@ -106,9 +111,14 @@ class WaypointServer(Node):
 
         goal.x = self.current_x
         goal.y = self.current_y
-        goal.theta = 0.0
+        goal.theta = self.current_theta
 
         self.goal_publisher_.publish(goal)
+        
+        self.get_logger().info(
+        f'Stop command published at '
+        f'({goal.x:.3f}, {goal.y:.3f}, {goal.theta:.3f})'
+        )
     
         
     def execute_callback(self, goal_handle):
