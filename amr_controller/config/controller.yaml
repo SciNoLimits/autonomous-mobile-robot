@@ -2,8 +2,8 @@ amr_controller:
     ros__parameters:
 
         # Goal Pose
-        x_goal: 1.0         # meters
-        y_goal: 1.0         # meters
+        x_goal: 0.0         # meters
+        y_goal: 0.0         # meters
         theta_goal: 0.0     # radians
 
         # Controller Gains
