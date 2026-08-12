@@ -153,12 +153,6 @@ class AMRController(Node):
         """Main control loop that computes and publishes control commands based on the current robot state and goal."""
         rho, alpha, beta = self.compute_error()
         
-        # if rho < self.rho_tol and abs(beta) < self.beta_tol:
-        #     self.stop_robot()
-        #     self.control_timer.cancel()
-        #     self.get_logger().info(f"Goal reached. rho = {rho:.4f}, beta = {beta:.4f}")
-        #     return
-        
         if rho < self.rho_tol:
             if abs(beta) < self.beta_tol:
                 self.stop_robot()
