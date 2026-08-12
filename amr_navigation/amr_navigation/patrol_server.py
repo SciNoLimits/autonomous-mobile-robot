@@ -145,6 +145,7 @@ class PatrolServer(Node):
 
             # Check cancellation before starting a cycle
             if goal_handle.is_cancel_requested:
+                self.get_logger().info('Patrol cancelled before starting navigation.')
 
                 goal_handle.canceled()
 
