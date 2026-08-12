@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 
 import time
+import os
+import yaml
 
 import rclpy
 from rclpy.node import Node
@@ -8,12 +10,14 @@ from rclpy.action import ActionClient, ActionServer, CancelResponse, GoalRespons
 from rclpy.callback_groups import ReentrantCallbackGroup
 from rclpy.executors import MultiThreadedExecutor
 from amr_interfaces.action import NavigateWaypoints, Patrol # type: ignore
-
+from ament_index_python.packages import get_package_share_directory
 
 
 class PatrolServer(Node):
     def __init__(self, name: str):
         super().__init__(node_name=name)
+        
+        self.load_patrol_config()
         
         self.callback_group = ReentrantCallbackGroup()
         
@@ -36,6 +40,41 @@ class PatrolServer(Node):
         
         
     # ---------------------------------------------------------
+    # Load patrol configuration
+    # ---------------------------------------------------------
+    
+    def load_patrol_config(self):
+        """Load patrol configuration from YAML."""
+        
+        package_share_directory = get_package_share_directory('amr_navigation')
+        
+        config_file = os.path.join(package_share_directory, 'config', 'patrol.yaml')
+
+        with open(config_file, 'r') as file:
+            config = yaml.safe_load(file)
+            
+        patrol_config = config['patrol']
+        self.patrol_cycles = patrol_config['cycles']
+        
+        self.configured_waypoints = []
+        
+        from geometry_msgs.msg import Pose2D
+        
+        for waypoint in patrol_config['waypoints']:
+            pose = Pose2D()
+            pose.x = waypoint['x']
+            pose.y = waypoint['y']
+            pose.theta = waypoint['theta']
+            self.configured_waypoints.append(pose)
+            
+        self.get_logger().info(
+            f'Loaded patrol configuration: '
+            f'{len(self.configured_waypoints)} waypoints, '
+            f'{self.patrol_cycles} cycles.'
+        )
+        
+    
+    # ---------------------------------------------------------
     # Goal handling
     # ---------------------------------------------------------
 
@@ -55,9 +94,9 @@ class PatrolServer(Node):
             return GoalResponse.REJECT
 
         self.get_logger().info(
-            f'Accepted patrol request: '
-            f'{len(goal_request.waypoints)} waypoints, '
-            f'{goal_request.patrol_cycles} cycles.'
+            f'Accepted patrol request using configuration: '
+            f'{len(self.configured_waypoints)} waypoints, '
+            f'{self.patrol_cycles} cycles.'
         )
 
         return GoalResponse.ACCEPT
@@ -109,8 +148,8 @@ class PatrolServer(Node):
             'Executing patrol mission.'
         )
 
-        waypoints = goal_handle.request.waypoints
-        patrol_cycles = goal_handle.request.patrol_cycles
+        waypoints = self.configured_waypoints
+        patrol_cycles = self.patrol_cycles
 
         result = Patrol.Result()
 
