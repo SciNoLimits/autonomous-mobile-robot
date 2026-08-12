@@ -27,7 +27,7 @@ class PatrolServer(Node):
                                           execute_callback=self.execute_callback,
                                           goal_callback=self.goal_callback,
                                           cancel_callback=self.cancel_callback,
-                                          callback_group=self.callback_group
+                                          callback_group=ReentrantCallbackGroup()
                                         )
         
         self.get_logger().info("Patrol Server is up and running.")
@@ -210,21 +210,14 @@ class PatrolServer(Node):
             )
 
             while rclpy.ok():
-
+                
                 if goal_handle.is_cancel_requested:
 
                     self.get_logger().info(
                         'Cancelling active navigation goal.'
                     )
 
-                    cancel_future = (
-                        navigation_goal_handle.cancel_goal_async()
-                    )
-
-                    rclpy.spin_until_future_complete(
-                        self,
-                        cancel_future
-                    )
+                    navigation_goal_handle.cancel_goal_async()
 
                     goal_handle.canceled()
 
@@ -233,6 +226,29 @@ class PatrolServer(Node):
                     result.message = 'Patrol cancelled.'
 
                     return result
+
+                # if goal_handle.is_cancel_requested:
+
+                #     self.get_logger().info(
+                #         'Cancelling active navigation goal.'
+                #     )
+
+                #     cancel_future = (
+                #         navigation_goal_handle.cancel_goal_async()
+                #     )
+
+                #     rclpy.spin_until_future_complete(
+                #         self,
+                #         cancel_future
+                #     )
+
+                #     goal_handle.canceled()
+
+                #     result.success = False
+                #     result.cycles_completed = cycles_completed
+                #     result.message = 'Patrol cancelled.'
+
+                #     return result
 
                 if result_future.done():
                     break
