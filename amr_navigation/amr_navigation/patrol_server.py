@@ -224,15 +224,76 @@ class PatrolServer(Node):
                 navigation_goal_handle.get_result_async()
             )
 
-            while rclpy.ok():
+            # while rclpy.ok():
                 
+            #     if goal_handle.is_cancel_requested:
+
+            #         self.get_logger().info(
+            #             'Cancelling active navigation goal.'
+            #         )
+
+            #         navigation_goal_handle.cancel_goal_async()
+
+            #         goal_handle.canceled()
+
+            #         result.success = False
+            #         result.cycles_completed = cycles_completed
+            #         result.message = 'Patrol cancelled.'
+
+            #         return result
+
+            #     # if goal_handle.is_cancel_requested:
+
+            #     #     self.get_logger().info(
+            #     #         'Cancelling active navigation goal.'
+            #     #     )
+
+            #     #     cancel_future = (
+            #     #         navigation_goal_handle.cancel_goal_async()
+            #     #     )
+
+            #     #     rclpy.spin_until_future_complete(
+            #     #         self,
+            #     #         cancel_future
+            #     #     )
+
+            #     #     goal_handle.canceled()
+
+            #     #     result.success = False
+            #     #     result.cycles_completed = cycles_completed
+            #     #     result.message = 'Patrol cancelled.'
+
+            #     #     return result
+
+            #     if result_future.done():
+            #         break
+
+            #     # Allow callbacks and feedback to execute
+            #     rclpy.spin_once(
+            #         self,
+            #         timeout_sec=0.1
+            #     )
+            
+            while rclpy.ok() and not result_future.done():
+
                 if goal_handle.is_cancel_requested:
 
                     self.get_logger().info(
                         'Cancelling active navigation goal.'
                     )
 
-                    navigation_goal_handle.cancel_goal_async()
+                    cancel_future = (
+                        navigation_goal_handle.cancel_goal_async()
+                    )
+
+                    # Wait for the navigation server to acknowledge
+                    # the cancellation request.
+                    while rclpy.ok() and not cancel_future.done():
+                        time.sleep(0.05)
+
+                    self.get_logger().info(
+                        'Navigation cancellation request processed.'
+                    )
 
                     goal_handle.canceled()
 
@@ -242,37 +303,7 @@ class PatrolServer(Node):
 
                     return result
 
-                # if goal_handle.is_cancel_requested:
-
-                #     self.get_logger().info(
-                #         'Cancelling active navigation goal.'
-                #     )
-
-                #     cancel_future = (
-                #         navigation_goal_handle.cancel_goal_async()
-                #     )
-
-                #     rclpy.spin_until_future_complete(
-                #         self,
-                #         cancel_future
-                #     )
-
-                #     goal_handle.canceled()
-
-                #     result.success = False
-                #     result.cycles_completed = cycles_completed
-                #     result.message = 'Patrol cancelled.'
-
-                #     return result
-
-                if result_future.done():
-                    break
-
-                # Allow callbacks and feedback to execute
-                rclpy.spin_once(
-                    self,
-                    timeout_sec=0.1
-                )
+                time.sleep(0.05)
 
             navigation_result = result_future.result().result
 
