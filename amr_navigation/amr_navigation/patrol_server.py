@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 
+import time
+
 import rclpy
 from rclpy.node import Node
 from rclpy.action import ActionClient, ActionServer, CancelResponse, GoalResponse
@@ -180,10 +182,22 @@ class PatrolServer(Node):
             )
 
             # Wait for goal response
-            rclpy.spin_until_future_complete(
-                self,
-                send_goal_future
-            )
+            while rclpy.ok() and not send_goal_future.done():
+
+                if goal_handle.is_cancel_requested:
+                    self.get_logger().info(
+                        'Patrol cancelled while sending navigation goal.'
+                    )
+
+                    goal_handle.canceled()
+
+                    result.success = False
+                    result.cycles_completed = cycles_completed
+                    result.message = 'Patrol cancelled.'
+
+                    return result
+
+                time.sleep(0.05)
 
             navigation_goal_handle = send_goal_future.result()
 
