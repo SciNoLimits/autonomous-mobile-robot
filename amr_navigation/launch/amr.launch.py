@@ -9,7 +9,17 @@ def generate_launch_description():
     amr_controller_share_dir = get_package_share_directory('amr_controller')
     amr_navigation_share_dir = get_package_share_directory('amr_navigation')
 
-    # Create an IncludeLaunchDescription action for the controller.launch.py file
+    # Create an IncludeLaunchDescription action for the launch.py file
+    turtlebot3_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                get_package_share_directory("turtlebot3_gazebo"),
+                "launch",
+                "empty_world.launch.py",
+            )
+        )
+    )
+    
     controller_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
             os.path.join(amr_controller_share_dir, 'launch', 'controller.launch.py')
@@ -24,6 +34,7 @@ def generate_launch_description():
 
     # Create and return the LaunchDescription
     ld = LaunchDescription()
+    ld.add_action(turtlebot3_launch)
     ld.add_action(controller_launch)
     ld.add_action(patrol_launch)
     return ld
