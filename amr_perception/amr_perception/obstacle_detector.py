@@ -14,35 +14,71 @@ class ObstacleDetector(Node):
         
         self.scan_subscriber_ = self.create_subscription(msg_type=LaserScan, topic='/scan', callback=self.scan_callback, qos_profile=10)
     
+    
     def scan_callback(self, msg):
+        
+        front_ranges = []
+        left_ranges = []
+        right_ranges = []
 
-        self.get_logger().info(
-            f'Received LaserScan: '
-            f'{len(msg.ranges)} ranges, '
-            f'range_min={msg.range_min:.2f}, '
-            f'range_max={msg.range_max:.2f}'
-        )
+        for index, distance in enumerate(msg.ranges):
 
-        valid_ranges = [
-            r for r in msg.ranges
-            if math.isfinite(r)
-            and msg.range_min <= r <= msg.range_max
-        ]
+            if not math.isfinite(distance):
+                continue
 
-        self.get_logger().info(
-            f'Valid ranges: {len(valid_ranges)}'
-        )
+            if not (
+                msg.range_min
+                <= distance
+                <= msg.range_max
+            ):
+                continue
 
-        if not valid_ranges:
-            self.get_logger().warn(
-                'No valid LiDAR measurements received.'
+            angle = (
+                msg.angle_min
+                + index * msg.angle_increment
             )
-            return
 
-        minimum_distance = min(valid_ranges)
+            angle = math.atan2(
+                math.sin(angle),
+                math.cos(angle)
+            )
+
+            angle_deg = math.degrees(angle)
+
+            # FRONT: -30° to +30°
+            if -30.0 <= angle_deg <= 30.0:
+                front_ranges.append(distance)
+
+            # LEFT: +30° to +90°
+            elif 30.0 < angle_deg <= 90.0:
+                left_ranges.append(distance)
+
+            # RIGHT: -90° to -30°
+            elif -90.0 <= angle_deg < -30.0:
+                right_ranges.append(distance)
+
+        front_distance = (
+            min(front_ranges)
+            if front_ranges
+            else float('inf')
+        )
+
+        left_distance = (
+            min(left_ranges)
+            if left_ranges
+            else float('inf')
+        )
+
+        right_distance = (
+            min(right_ranges)
+            if right_ranges
+            else float('inf')
+        )
 
         self.get_logger().info(
-            f'Nearest obstacle: {minimum_distance:.2f} m'
+            f'Front: {front_distance:.2f} m | '
+            f'Left: {left_distance:.2f} m | '
+            f'Right: {right_distance:.2f} m'
         )
         
 
