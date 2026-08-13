@@ -16,7 +16,7 @@ setup(
     maintainer='scinolimits',
     maintainer_email='prazwaldutta7@gmail.com',
     description='TODO: Package description',
-    license='TODO: License declaration',
+    license='MIT',
     extras_require={
         'test': [
             'pytest',
