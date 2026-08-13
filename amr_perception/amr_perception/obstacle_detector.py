@@ -5,6 +5,8 @@ import math
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
+from rclpy.executors import ExternalShutdownException
+
 
 class ObstacleDetector(Node):
     def __init__(self, name: str):
@@ -47,18 +49,14 @@ class ObstacleDetector(Node):
 def main(args=None):
 
     rclpy.init(args=args)
-
     node = ObstacleDetector(name="obstacle_detector")
 
     try:
         rclpy.spin(node)
-
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
-
     finally:
         node.destroy_node()
-
         if rclpy.ok():
             rclpy.shutdown()
 
