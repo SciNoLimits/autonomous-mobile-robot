@@ -6,7 +6,7 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from rclpy.executors import ExternalShutdownException
-from std_msgs.msg import Bool
+from amr_interfaces.msg import ObstacleStatus # type: ignore
 
 
 class ObstacleDetector(Node):
@@ -22,8 +22,8 @@ class ObstacleDetector(Node):
                                                          qos_profile=10
                                                          )
         
-        self.obstacle_publisher_ = self.create_publisher(msg_type=Bool, 
-                                                         topic='/obstacle_detected',
+        self.obstacle_publisher_ = self.create_publisher(msg_type=ObstacleStatus, 
+                                                         topic='/obstacle_status',
                                                          qos_profile=10
                                                         )
         
@@ -94,9 +94,15 @@ class ObstacleDetector(Node):
         )
         
         obstacle_detected = (front_distance < self.obstacle_threshold)
-        msg = Bool()
-        msg.data = obstacle_detected
-        self.obstacle_publisher_.publish(msg)
+        
+        status_msg = ObstacleStatus()
+        
+        status_msg.front_distance = float(front_distance)
+        status_msg.left_distance = float(left_distance)
+        status_msg.right_distance = float(right_distance)
+        status_msg.obstacle_detected = obstacle_detected
+        
+        self.obstacle_publisher_.publish(status_msg)
 
         self.get_logger().info(
             f'Front: {front_distance:.2f} m | '
