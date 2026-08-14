@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from launch import LaunchDescription
+from launch_ros.actions import Node
 from launch.actions import IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 import os
@@ -33,10 +34,34 @@ def generate_launch_description():
             os.path.join(amr_navigation_share_dir, 'launch', 'patrol.launch.py')
         )
     )
+    
+    obstacle_detection = Node(
+        package='amr_perception',
+        executable='obstacle_detector',
+        name='obstacle_detector',
+        output='screen',
+    )
+    
+    obstacle_avoidance = Node(
+        package='amr_navigation',
+        executable='obstacle_avoidance',
+        name='obstacle_avoidance',
+        output='screen',
+    )
+    
+    cmd_arbitrator = Node(
+        package='amr_navigation',
+        executable='cmd_arbitrator',
+        name='cmd_arbitrator',
+        output='screen',
+    )
 
     # Create and return the LaunchDescription
     ld = LaunchDescription()
     ld.add_action(turtlebot3_launch)
     ld.add_action(controller_launch)
     ld.add_action(patrol_launch)
+    ld.add_action(obstacle_detection)
+    ld.add_action(obstacle_avoidance)
+    ld.add_action(cmd_arbitrator)
     return ld
