@@ -130,8 +130,8 @@ class AMRController(Node):
         w = self.k_alpha * alpha + self.k_beta * beta
 
         # Reverse if goal is behind the robot
-        if abs(alpha) > math.pi / 2:
-            v = -v
+        # if abs(alpha) > math.pi / 2:
+        #     v = -v
 
         return v, w
     
