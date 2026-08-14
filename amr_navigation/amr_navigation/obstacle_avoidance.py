@@ -55,7 +55,7 @@ class ObstacleAvoidance(Node):
 
         self.cmd_vel_publisher = self.create_publisher(
             Twist,
-            '/obstacle_avoidance/cmd_vel',
+            '/avoidance_cmd',
             10
         )
 
