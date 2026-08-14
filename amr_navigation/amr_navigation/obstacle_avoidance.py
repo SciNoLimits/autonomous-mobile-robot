@@ -3,7 +3,7 @@
 import rclpy
 from rclpy.node import Node
 
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import TwistStamped
 from amr_interfaces.msg import ObstacleStatus  # type: ignore
 from rclpy.executors import ExternalShutdownException
 
@@ -54,9 +54,9 @@ class ObstacleAvoidance(Node):
         # -------------------------------------------------
 
         self.cmd_vel_publisher = self.create_publisher(
-            Twist,
-            '/avoidance_cmd',
-            10
+            msg_type=TwistStamped,
+            topic='/avoidance_cmd',
+            qos_profile=10
         )
 
         # -------------------------------------------------
@@ -64,10 +64,10 @@ class ObstacleAvoidance(Node):
         # -------------------------------------------------
 
         self.obstacle_subscriber = self.create_subscription(
-            ObstacleStatus,
-            '/obstacle_status',
-            self.obstacle_callback,
-            10
+            msg_type=ObstacleStatus,
+            topic='/obstacle_status',
+            callback=self.obstacle_callback,
+            qos_profile=10
         )
 
         # -------------------------------------------------
@@ -75,8 +75,8 @@ class ObstacleAvoidance(Node):
         # -------------------------------------------------
 
         self.control_timer = self.create_timer(
-            0.1,
-            self.control_loop
+            timer_period_sec= 0.1,
+            callback=self.control_loop
         )
 
         self.get_logger().info(
@@ -207,28 +207,37 @@ class ObstacleAvoidance(Node):
 
     def publish_turn_left(self):
 
-        cmd = Twist()
+        cmd = TwistStamped()
+        
+        cmd.header.stamp = self.get_clock().now().to_msg()
+        cmd.header.frame_id = 'base_link'
 
-        cmd.linear.x = 0.0
-        cmd.angular.z = self.turn_speed
+        cmd.twist.linear.x = 0.0
+        cmd.twist.angular.z = self.turn_speed
 
         self.cmd_vel_publisher.publish(cmd)
 
     def publish_turn_right(self):
 
-        cmd = Twist()
+        cmd = TwistStamped()
+        
+        cmd.header.stamp = self.get_clock().now().to_msg()
+        cmd.header.frame_id = 'base_link'
 
-        cmd.linear.x = 0.0
-        cmd.angular.z = -self.turn_speed
+        cmd.twist.linear.x = 0.0
+        cmd.twist.angular.z = -self.turn_speed
 
         self.cmd_vel_publisher.publish(cmd)
 
     def publish_stop(self):
 
-        cmd = Twist()
+        cmd = TwistStamped()
+        
+        cmd.header.stamp = self.get_clock().now().to_msg()
+        cmd.header.frame_id = 'base_link'
 
-        cmd.linear.x = 0.0
-        cmd.angular.z = 0.0
+        cmd.twist.linear.x = 0.0
+        cmd.twist.angular.z = 0.0
 
         self.cmd_vel_publisher.publish(cmd)
 
