@@ -6,13 +6,31 @@ import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import LaserScan
 from rclpy.executors import ExternalShutdownException
+from std_msgs.msg import Bool
 
 
 class ObstacleDetector(Node):
     def __init__(self, name: str):
         super().__init__(node_name=name)
         
-        self.scan_subscriber_ = self.create_subscription(msg_type=LaserScan, topic='/scan', callback=self.scan_callback, qos_profile=10)
+        self.declare_parameter('obstacle_threshold', 0.5)  # meters
+        self.obstacle_threshold = self.get_parameter('obstacle_threshold').get_parameter_value().double_value
+        
+        self.scan_subscriber_ = self.create_subscription(msg_type=LaserScan, 
+                                                         topic='/scan', 
+                                                         callback=self.scan_callback, 
+                                                         qos_profile=10
+                                                         )
+        
+        self.obstacle_publisher_ = self.create_publisher(msg_type=Bool, 
+                                                         topic='/obstacle_detected',
+                                                         qos_profile=10
+                                                        )
+        
+        self.get_logger().info(
+            f'Obstacle Detector is up and running. '
+            f'Threshold: {self.obstacle_threshold:.2f} m'
+        )
     
     
     def scan_callback(self, msg):
@@ -74,11 +92,17 @@ class ObstacleDetector(Node):
             if right_ranges
             else float('inf')
         )
+        
+        obstacle_detected = (front_distance < self.obstacle_threshold)
+        msg = Bool()
+        msg.data = obstacle_detected
+        self.obstacle_publisher_.publish(msg)
 
         self.get_logger().info(
             f'Front: {front_distance:.2f} m | '
             f'Left: {left_distance:.2f} m | '
-            f'Right: {right_distance:.2f} m'
+            f'Right: {right_distance:.2f} m | '
+            f'Obstacle Detected: {obstacle_detected}'
         )
         
 
