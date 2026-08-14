@@ -59,7 +59,7 @@ class AMRController(Node):
         
         self.goal_subscriber_ = self.create_subscription(msg_type=Pose2D, topic='/amr_controller/goal', callback=self.goal_callback, qos_profile=10)
         
-        self.publisher_ = self.create_publisher(msg_type=TwistStamped, topic='/cmd_vel', qos_profile=10)
+        self.publisher_ = self.create_publisher(msg_type=TwistStamped, topic='/navigation_cmd', qos_profile=10)
         
         self.goal_reached_publisher_ = self.create_publisher(msg_type=Bool, topic='/amr_controller/goal_reached', qos_profile=10)
         
