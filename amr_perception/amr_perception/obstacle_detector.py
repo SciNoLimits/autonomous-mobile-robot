@@ -8,10 +8,11 @@ from sensor_msgs.msg import LaserScan
 from rclpy.executors import ExternalShutdownException
 from amr_interfaces.msg import ObstacleStatus # type: ignore
 
+import tf2_geometry_msgs
 from tf2_ros import TransformListener, Buffer
 # from tf_transformations import euler_from_quaternion
 from rclpy.time import Time
-# from geometry_msgs.msg import PointStamped
+from geometry_msgs.msg import PointStamped
 
 
 class ObstacleDetector(Node):
@@ -51,6 +52,25 @@ class ObstacleDetector(Node):
                 f'Could not transform base_scan -> base_link: {e}'
             )
             return None
+        
+        
+    def transform_lidar_point(self, msg: LaserScan, distance: float, angle: float):
+        """Transform a LiDAR measurement from base_scan to base_link."""
+        
+        point = PointStamped()
+        
+        point.header.frame_id = 'base_scan'
+        point.header.stamp = msg.header.stamp
+        
+        point.point.x = distance * math.cos(angle)
+        point.point.y = distance * math.sin(angle)
+        point.point.z = 0.0
+        
+        transformed_point = self.tf_buffer.transform(object_stamped=point, target_frame='base_link')
+        
+        return transformed_point
+        
+        
     
     
     def scan_callback(self, msg):
@@ -92,6 +112,28 @@ class ObstacleDetector(Node):
                 math.sin(angle),
                 math.cos(angle)
             )
+            
+            if abs(angle) < math.radians(1.0):
+                try:
+                    transformed_point = self.transform_lidar_point(
+                        msg,
+                        distance,
+                        angle
+                    )
+
+                    self.get_logger().info(
+                        f'LiDAR point: '
+                        f'x={distance * math.cos(angle):.3f}, '
+                        f'y={distance * math.sin(angle):.3f} '
+                        f'-> base_link: '
+                        f'x={transformed_point.point.x:.3f}, ' # type: ignore
+                        f'y={transformed_point.point.y:.3f}' # type: ignore
+                    )
+
+                except Exception as e:
+                    self.get_logger().warn(
+                        f'Point transformation failed: {e}'
+                    )
 
             angle_deg = math.degrees(angle)
 
