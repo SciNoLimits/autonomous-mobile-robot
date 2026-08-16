@@ -42,16 +42,16 @@ class ObstacleDetector(Node):
         )
         
     
-    def get_lidar_transform(self):
-        try:
-            transform = self.tf_buffer.lookup_transform(target_frame='base_link', source_frame='base_scan', time=Time())
-            return transform
+    # def get_lidar_transform(self):
+    #     try:
+    #         transform = self.tf_buffer.lookup_transform(target_frame='base_link', source_frame='base_scan', time=Time())
+    #         return transform
         
-        except Exception as e:
-            self.get_logger().warn(
-                f'Could not transform base_scan -> base_link: {e}'
-            )
-            return None
+    #     except Exception as e:
+    #         self.get_logger().warn(
+    #             f'Could not transform base_scan -> base_link: {e}'
+    #         )
+    #         return None
         
         
     def transform_lidar_point(self, msg: LaserScan, distance: float, angle: float):
@@ -75,17 +75,17 @@ class ObstacleDetector(Node):
     
     def scan_callback(self, msg):
         
-        transform = self.get_lidar_transform()
+        # transform = self.get_lidar_transform()
         
-        if transform is None:
-            return
+        # if transform is None:
+        #     return
         
-        self.get_logger().info(
-            f'LiDAR transform: '
-            f'x={transform.transform.translation.x:.3f}, '
-            f'y={transform.transform.translation.y:.3f}, '
-            f'z={transform.transform.translation.z:.3f}'
-        )
+        # self.get_logger().info(
+        #     f'LiDAR transform: '
+        #     f'x={transform.transform.translation.x:.3f}, '
+        #     f'y={transform.transform.translation.y:.3f}, '
+        #     f'z={transform.transform.translation.z:.3f}'
+        # )
         
         front_ranges = []
         left_ranges = []
