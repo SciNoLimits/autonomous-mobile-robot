@@ -32,6 +32,7 @@ setup(
             'patrol_server = amr_navigation.patrol_server:main',
             'obstacle_avoidance = amr_navigation.obstacle_avoidance:main',
             'cmd_arbitrator = amr_navigation.cmd_arbitrator:main',
+            'tf_pose_monitor = amr_navigation.tf_pose_monitor:main',
         ],
     },
 )
