@@ -41,6 +41,9 @@ class ObstacleDetector(Node):
             f'Threshold: {self.obstacle_threshold:.2f} m'
         )
         
+        self.closest_front_x = float('inf')
+        self.closest_front_y = float('inf')
+        
     
     # def get_lidar_transform(self):
     #     try:
@@ -90,6 +93,10 @@ class ObstacleDetector(Node):
         front_ranges = []
         left_ranges = []
         right_ranges = []
+        
+        closest_front_distance = float('inf')
+        closest_front_x = float('inf')
+        closest_front_y = float('inf')
 
         for index, distance in enumerate(msg.ranges):
 
@@ -140,6 +147,31 @@ class ObstacleDetector(Node):
             # FRONT: -30° to +30°
             if -30.0 <= angle_deg <= 30.0:
                 front_ranges.append(distance)
+                
+                if distance < closest_front_distance:
+                    try:
+                        transformed_point = self.transform_lidar_point(
+                            msg,
+                            distance,
+                            angle
+                        )
+
+                        closest_front_distance = distance
+                        closest_front_x = transformed_point.point.x # type: ignore
+                        closest_front_y = transformed_point.point.y # type: ignore
+
+                    except Exception as e:
+                        self.get_logger().warn(
+                            f'Point transformation failed: {e}'
+                        )
+                
+                if math.isfinite(closest_front_distance):
+                    self.get_logger().info(
+                        f'Closest front obstacle in base_link: '
+                        f'x={closest_front_x:.3f} m, '
+                        f'y={closest_front_y:.3f} m, '
+                        f'distance={closest_front_distance:.3f} m'
+                    )
 
             # LEFT: +30° to +90°
             elif 30.0 < angle_deg <= 90.0:
