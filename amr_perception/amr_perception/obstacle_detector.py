@@ -8,6 +8,11 @@ from sensor_msgs.msg import LaserScan
 from rclpy.executors import ExternalShutdownException
 from amr_interfaces.msg import ObstacleStatus # type: ignore
 
+from tf2_ros import TransformListener, Buffer
+# from tf_transformations import euler_from_quaternion
+from rclpy.time import Time
+# from geometry_msgs.msg import PointStamped
+
 
 class ObstacleDetector(Node):
     def __init__(self, name: str):
@@ -27,13 +32,40 @@ class ObstacleDetector(Node):
                                                          qos_profile=10
                                                         )
         
+        self.tf_buffer = Buffer()
+        self.tf_listener = TransformListener(buffer=self.tf_buffer, node=self)
+        
         self.get_logger().info(
             f'Obstacle Detector is up and running. '
             f'Threshold: {self.obstacle_threshold:.2f} m'
         )
+        
+    
+    def get_lidar_transform(self):
+        try:
+            transform = self.tf_buffer.lookup_transform(target_frame='base_link', source_frame='base_scan', time=Time())
+            return transform
+        
+        except Exception as e:
+            self.get_logger().warn(
+                f'Could not transform base_scan -> base_link: {e}'
+            )
+            return None
     
     
     def scan_callback(self, msg):
+        
+        transform = self.get_lidar_transform()
+        
+        if transform is None:
+            return
+        
+        self.get_logger().info(
+            f'LiDAR transform: '
+            f'x={transform.transform.translation.x:.3f}, '
+            f'y={transform.transform.translation.y:.3f}, '
+            f'z={transform.transform.translation.z:.3f}'
+        )
         
         front_ranges = []
         left_ranges = []
