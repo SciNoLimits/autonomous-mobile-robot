@@ -227,7 +227,10 @@ class ObstacleAvoidance(Node):
     def handle_turn_left_state(self):
 
         # Continue turning until front is clear
-        if self.front_distance < self.clearance_threshold:
+        if (
+            self.front_distance < self.clearance_threshold 
+            or self.left_distance < self.side_clearance_threshold
+        ):
 
             self.publish_turn_left()
 
@@ -238,7 +241,7 @@ class ObstacleAvoidance(Node):
             self.publish_stop()
 
             self.get_logger().info(
-                'Front clear. Returning to CLEAR state.'
+                'Front and left side clear. Returning to CLEAR state.'
             )
 
     # -----------------------------------------------------
@@ -248,7 +251,10 @@ class ObstacleAvoidance(Node):
     def handle_turn_right_state(self):
 
         # Continue turning until front is clear
-        if self.front_distance < self.clearance_threshold:
+        if (
+            self.front_distance < self.clearance_threshold
+            or self.right_distance < self.side_clearance_threshold
+        ):
 
             self.publish_turn_right()
 
@@ -259,7 +265,7 @@ class ObstacleAvoidance(Node):
             self.publish_stop()
 
             self.get_logger().info(
-                'Front clear. Returning to CLEAR state.'
+                'Front and right side clear. Returning to CLEAR state.'
             )
 
     # -----------------------------------------------------
