@@ -1,4 +1,6 @@
 float32 front_distance
 float32 left_distance
 float32 right_distance
+float32 closest_obstacle_x
+float32 closest_obstacle_y
 bool obstacle_detected

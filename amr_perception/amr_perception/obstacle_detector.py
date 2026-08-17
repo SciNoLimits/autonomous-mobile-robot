@@ -206,6 +206,8 @@ class ObstacleDetector(Node):
         status_msg.front_distance = float(front_distance)
         status_msg.left_distance = float(left_distance)
         status_msg.right_distance = float(right_distance)
+        status_msg.closest_obstacle_x = float(closest_front_x)
+        status_msg.closest_obstacle_y = float(closest_front_y)
         status_msg.obstacle_detected = obstacle_detected
         
         self.obstacle_publisher_.publish(status_msg)
