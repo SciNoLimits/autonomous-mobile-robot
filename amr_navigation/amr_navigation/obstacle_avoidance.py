@@ -48,6 +48,10 @@ class ObstacleAvoidance(Node):
         self.front_distance = float('inf')
         self.left_distance = float('inf')
         self.right_distance = float('inf')
+        
+        # Closest obstacle position in base_link
+        self.closest_obstacle_x = float('inf')
+        self.closest_obstacle_y = 0.0
 
         # -------------------------------------------------
         # Publisher
@@ -92,6 +96,15 @@ class ObstacleAvoidance(Node):
         self.front_distance = msg.front_distance
         self.left_distance = msg.left_distance
         self.right_distance = msg.right_distance
+        
+        self.closest_obstacle_x = msg.closest_obstacle_x
+        self.closest_obstacle_y = msg.closest_obstacle_y
+        
+        self.get_logger().info(
+            f'Closest obstacle in base_link: '
+            f'x={self.closest_obstacle_x:.2f} m, '
+            f'y={self.closest_obstacle_y:.2f} m'
+        )
 
     # -----------------------------------------------------
     # State machine
@@ -135,21 +148,66 @@ class ObstacleAvoidance(Node):
         )
 
         # Choose the side with more clearance
-        if self.left_distance > self.right_distance:
+        # if self.left_distance > self.right_distance:
 
+        #     self.state = 'TURN_LEFT'
+
+        #     self.get_logger().info(
+        #         'Choosing LEFT for obstacle avoidance.'
+        #     )
+
+        # else:
+
+        #     self.state = 'TURN_RIGHT'
+
+        #     self.get_logger().info(
+        #         'Choosing RIGHT for obstacle avoidance.'
+        #     )
+        
+        # Choose avoidance direction based on obstacle position
+        if self.closest_obstacle_y > 0.0:
+
+            # Obstacle is on the left
+            self.state = 'TURN_RIGHT'
+
+            self.get_logger().info(
+                f'Obstacle is on the LEFT '
+                f'(y={self.closest_obstacle_y:.2f} m). '
+                f'Choosing RIGHT.'
+            )
+
+        elif self.closest_obstacle_y < 0.0:
+
+            # Obstacle is on the right
             self.state = 'TURN_LEFT'
 
             self.get_logger().info(
-                'Choosing LEFT for obstacle avoidance.'
+                f'Obstacle is on the RIGHT '
+                f'(y={self.closest_obstacle_y:.2f} m). '
+                f'Choosing LEFT.'
             )
 
         else:
 
-            self.state = 'TURN_RIGHT'
+            # Obstacle is approximately centered.
+            # Fall back to clearance comparison.
+            if self.left_distance > self.right_distance:
 
-            self.get_logger().info(
-                'Choosing RIGHT for obstacle avoidance.'
-            )
+                self.state = 'TURN_LEFT'
+
+                self.get_logger().info(
+                    'Obstacle is centered. '
+                    'Choosing LEFT based on clearance.'
+                )
+
+            else:
+
+                self.state = 'TURN_RIGHT'
+
+                self.get_logger().info(
+                    'Obstacle is centered. '
+                    'Choosing RIGHT based on clearance.'
+                )
 
     # -----------------------------------------------------
     # TURN LEFT
