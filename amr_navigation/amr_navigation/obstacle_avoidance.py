@@ -17,10 +17,12 @@ class ObstacleAvoidance(Node):
         # Parameters
         # -------------------------------------------------
 
-        self.declare_parameter('obstacle_threshold', 0.50)
-        self.declare_parameter('clearance_threshold', 0.70)
+        self.declare_parameter('obstacle_threshold', 0.50)      # Trigger avoidance
+        self.declare_parameter('clearance_threshold', 0.70)     # Front distance required before leaving avoidance
         self.declare_parameter('avoidance_speed', 0.15)
         self.declare_parameter('turn_speed', 0.8)
+        self.declare_parameter('obstacle_side_deadband', 0.10)
+        self.declare_parameter('side_clearance_threshold', 0.45) # Minimum safe space beside robot
 
         self.obstacle_threshold = self.get_parameter(
             'obstacle_threshold'
@@ -36,6 +38,14 @@ class ObstacleAvoidance(Node):
 
         self.turn_speed = self.get_parameter(
             'turn_speed'
+        ).get_parameter_value().double_value
+        
+        self.obstacle_side_deadband = self.get_parameter(
+            'obstacle_side_deadband'
+        ).get_parameter_value().double_value
+        
+        self.side_clearance_threshold = self.get_parameter(
+            'side_clearance_threshold'
         ).get_parameter_value().double_value
 
         # -------------------------------------------------
@@ -165,39 +175,39 @@ class ObstacleAvoidance(Node):
         #     )
         
         # Choose avoidance direction based on obstacle position
-        if self.closest_obstacle_y > 0.0:
+        if self.closest_obstacle_y > self.obstacle_side_deadband:
 
-            # Obstacle is on the left
+            # Obstacle is clearly on the left
             self.state = 'TURN_RIGHT'
 
             self.get_logger().info(
-                f'Obstacle is on the LEFT '
+                f'Obstacle is clearly on the LEFT '
                 f'(y={self.closest_obstacle_y:.2f} m). '
                 f'Choosing RIGHT.'
             )
 
-        elif self.closest_obstacle_y < 0.0:
+        elif self.closest_obstacle_y < -self.obstacle_side_deadband:
 
-            # Obstacle is on the right
+            # Obstacle is clearly on the right
             self.state = 'TURN_LEFT'
 
             self.get_logger().info(
-                f'Obstacle is on the RIGHT '
+                f'Obstacle is clearly on the RIGHT '
                 f'(y={self.closest_obstacle_y:.2f} m). '
                 f'Choosing LEFT.'
             )
 
         else:
 
-            # Obstacle is approximately centered.
-            # Fall back to clearance comparison.
+            # Obstacle is approximately centered
             if self.left_distance > self.right_distance:
 
                 self.state = 'TURN_LEFT'
 
                 self.get_logger().info(
-                    'Obstacle is centered. '
-                    'Choosing LEFT based on clearance.'
+                    f'Obstacle is CENTERED '
+                    f'(y={self.closest_obstacle_y:.2f} m). '
+                    f'Choosing LEFT based on clearance.'
                 )
 
             else:
@@ -205,8 +215,9 @@ class ObstacleAvoidance(Node):
                 self.state = 'TURN_RIGHT'
 
                 self.get_logger().info(
-                    'Obstacle is centered. '
-                    'Choosing RIGHT based on clearance.'
+                    f'Obstacle is CENTERED '
+                    f'(y={self.closest_obstacle_y:.2f} m). '
+                    f'Choosing RIGHT based on clearance.'
                 )
 
     # -----------------------------------------------------
