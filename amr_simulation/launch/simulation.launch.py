@@ -31,7 +31,7 @@ def generate_launch_description():
     world_file = os.path.join(
         amr_simulation_dir,
         'worlds',
-        'amr_world.world'
+        'amr_world.sdf'
     )
 
     turtlebot3_launch = os.path.join(
