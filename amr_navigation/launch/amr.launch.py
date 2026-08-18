@@ -11,6 +11,7 @@ def generate_launch_description():
     # Get the path to the amr_controller and amr_navigation package
     amr_controller_share_dir = get_package_share_directory('amr_controller')
     amr_navigation_share_dir = get_package_share_directory('amr_navigation')
+    amr_simulation_share_dir = get_package_share_directory('amr_simulation')
 
     # Create an IncludeLaunchDescription action for the launch.py file
     turtlebot3_launch = IncludeLaunchDescription(
@@ -22,6 +23,14 @@ def generate_launch_description():
             )
         )
     )
+    
+    turtlebot3_amr_env_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                amr_simulation_share_dir,
+                "launch",
+                "simulation.launch.py",
+            )))
     
     controller_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -58,7 +67,8 @@ def generate_launch_description():
 
     # Create and return the LaunchDescription
     ld = LaunchDescription()
-    ld.add_action(turtlebot3_launch)
+    # ld.add_action(turtlebot3_launch)
+    ld.add_action(turtlebot3_amr_env_launch)
     ld.add_action(controller_launch)
     ld.add_action(patrol_launch)
     ld.add_action(obstacle_detection)

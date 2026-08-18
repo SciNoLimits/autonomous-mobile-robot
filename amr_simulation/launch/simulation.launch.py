@@ -103,6 +103,15 @@ def generate_launch_description():
             'models'
         )
     )
+    
+    set_amr_resource_path = AppendEnvironmentVariable(
+        'GZ_SIM_RESOURCE_PATH',
+        os.path.join(
+            amr_simulation_dir,
+            'worlds',
+            'models'
+        )
+    )
 
     return LaunchDescription([
 
@@ -119,6 +128,8 @@ def generate_launch_description():
         ),
 
         set_gazebo_resource_path,
+        
+        set_amr_resource_path,
 
         gazebo_server,
 

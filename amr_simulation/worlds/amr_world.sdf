@@ -47,7 +47,7 @@
 
     <!-- Include your custom Fusion 360 environment model -->
     <include>
-      <uri>model://environment</uri>
+      <uri>model://amr_environment</uri>
       <pose>-42 51.4 0.8 0 0 0</pose>
     </include>
 
