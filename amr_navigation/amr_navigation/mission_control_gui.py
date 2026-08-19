@@ -98,6 +98,22 @@ class MissionControlGUI:
         self.root.minsize(980, 700)
         self.root.protocol('WM_DELETE_WINDOW', self.close)
 
+        self.colors = {
+            'bg': '#eef3f8',
+            'panel': '#ffffff',
+            'panel_alt': '#f8fbff',
+            'text': '#1f2937',
+            'muted': '#64748b',
+            'accent': '#0f4c81',
+            'accent_soft': '#dbeafe',
+            'success': '#0f766e',
+            'warning': '#b45309',
+            'danger': '#b91c1c',
+            'border': '#d7e2ee',
+        }
+
+        self.root.configure(bg=self.colors['bg'])
+
         self.create_styles()
         self.create_widgets()
 
@@ -183,25 +199,121 @@ class MissionControlGUI:
 
         style = ttk.Style()
 
-        style.configure('Dashboard.TLabelframe', padding=12)
-        style.configure('KpiValue.TLabel', font=('TkDefaultFont', 13, 'bold'))
-        style.configure('KpiTitle.TLabel', font=('TkDefaultFont', 10))
-        style.configure('Headline.TLabel', font=('TkDefaultFont', 20, 'bold'))
-        style.configure('Banner.TLabel', font=('TkDefaultFont', 14, 'bold'))
+        try:
+            style.theme_use('clam')
+        except tk.TclError:
+            pass
+
+        style.configure('TFrame', background=self.colors['bg'])
+        style.configure('TLabel', background=self.colors['bg'], foreground=self.colors['text'])
+
+        style.configure(
+            'Dashboard.TLabelframe',
+            padding=12,
+            background=self.colors['panel'],
+            bordercolor=self.colors['border'],
+            borderwidth=1,
+            relief='solid',
+        )
+        style.configure(
+            'Dashboard.TLabelframe.Label',
+            background=self.colors['panel'],
+            foreground=self.colors['text'],
+            font=('TkDefaultFont', 10, 'bold'),
+        )
+
+        style.configure(
+            'KpiValue.TLabel',
+            font=('TkDefaultFont', 13, 'bold'),
+            background=self.colors['panel'],
+            foreground=self.colors['text'],
+        )
+        style.configure(
+            'KpiTitle.TLabel',
+            font=('TkDefaultFont', 10),
+            background=self.colors['panel'],
+            foreground=self.colors['muted'],
+        )
+        style.configure(
+            'Headline.TLabel',
+            font=('TkDefaultFont', 20, 'bold'),
+            background=self.colors['accent'],
+            foreground='#ffffff',
+        )
+        style.configure(
+            'Subhead.TLabel',
+            font=('TkDefaultFont', 10),
+            background=self.colors['accent'],
+            foreground='#e2e8f0',
+        )
+        style.configure(
+            'Banner.TLabel',
+            font=('TkDefaultFont', 14, 'bold'),
+            background=self.colors['panel_alt'],
+            foreground=self.colors['text'],
+        )
+
+        style.configure(
+            'Primary.TButton',
+            padding=(10, 8),
+            font=('TkDefaultFont', 10, 'bold'),
+        )
+        style.map(
+            'Primary.TButton',
+            foreground=[('disabled', '#cbd5e1'), ('!disabled', '#ffffff')],
+            background=[('disabled', '#93a4b8'), ('active', '#0d3f6a'), ('!disabled', self.colors['accent'])],
+            relief=[('pressed', 'sunken'), ('!pressed', 'flat')],
+        )
+
+        style.configure(
+            'Danger.TButton',
+            padding=(10, 8),
+            font=('TkDefaultFont', 10, 'bold'),
+        )
+        style.map(
+            'Danger.TButton',
+            foreground=[('disabled', '#cbd5e1'), ('!disabled', '#ffffff')],
+            background=[('disabled', '#c4a5a5'), ('active', '#991b1b'), ('!disabled', self.colors['danger'])],
+            relief=[('pressed', 'sunken'), ('!pressed', 'flat')],
+        )
+
+        style.configure(
+            'Custom.Horizontal.TProgressbar',
+            troughcolor='#e5edf6',
+            bordercolor='#e5edf6',
+            background=self.colors['accent'],
+            lightcolor=self.colors['accent'],
+            darkcolor=self.colors['accent'],
+        )
 
     def create_widgets(self):
 
-        header = ttk.Frame(self.root)
-        header.pack(fill='x', padx=14, pady=(12, 8))
+        header = tk.Frame(self.root, bg=self.colors['accent'], bd=0, highlightthickness=0)
+        header.pack(fill='x', padx=14, pady=(12, 10))
+
+        heading_col = tk.Frame(header, bg=self.colors['accent'])
+        heading_col.pack(side='left', padx=16, pady=12)
 
         ttk.Label(
-            header,
+            heading_col,
             text='AMR Mission Control',
             style='Headline.TLabel',
-        ).pack(side='left')
+        ).pack(anchor='w')
 
-        self.live_clock_label = ttk.Label(header, text='--:--:--')
-        self.live_clock_label.pack(side='right')
+        ttk.Label(
+            heading_col,
+            text='Live mission orchestration and telemetry',
+            style='Subhead.TLabel',
+        ).pack(anchor='w', pady=(2, 0))
+
+        self.live_clock_label = tk.Label(
+            header,
+            text='--:--:--',
+            bg=self.colors['accent'],
+            fg='#ffffff',
+            font=('TkDefaultFont', 12, 'bold'),
+        )
+        self.live_clock_label.pack(side='right', padx=16)
 
         telemetry_row = ttk.Frame(self.root)
         telemetry_row.pack(fill='x', padx=14, pady=6)
@@ -233,11 +345,42 @@ class MissionControlGUI:
         self.distance_value = self.kpi(mission_frame, 2, 'Distance', '-- m')
         self.nav_state_value = self.kpi(mission_frame, 3, 'State', 'IDLE')
 
+        self.cycle_progress = ttk.Progressbar(
+            mission_frame,
+            style='Custom.Horizontal.TProgressbar',
+            orient='horizontal',
+            mode='determinate',
+            maximum=100,
+            value=0,
+        )
+        self.cycle_progress.grid(row=4, column=0, columnspan=2, sticky='ew', pady=(8, 2))
+
+        self.waypoint_progress = ttk.Progressbar(
+            mission_frame,
+            style='Custom.Horizontal.TProgressbar',
+            orient='horizontal',
+            mode='determinate',
+            maximum=100,
+            value=0,
+        )
+        self.waypoint_progress.grid(row=5, column=0, columnspan=2, sticky='ew', pady=(4, 2))
+
         # Robot KPIs
         self.robot_link_value = self.kpi(robot_frame, 0, 'Robot', 'OFFLINE')
         self.robot_state_value = self.kpi(robot_frame, 1, 'State', 'IDLE')
         self.robot_pose_value = self.kpi(robot_frame, 2, 'Position', 'x=0.00 y=0.00 th=0.00')
         self.mission_elapsed_value = self.kpi(robot_frame, 3, 'Mission Time', '--')
+
+        self.robot_health_chip = tk.Label(
+            robot_frame,
+            text='OFFLINE',
+            bg='#e2e8f0',
+            fg=self.colors['text'],
+            padx=10,
+            pady=2,
+            font=('TkDefaultFont', 9, 'bold'),
+        )
+        self.robot_health_chip.grid(row=0, column=2, padx=(10, 0), sticky='w')
 
         # Obstacle KPIs
         self.front_value = self.kpi(obstacle_frame, 0, 'Front', '-- m')
@@ -245,50 +388,52 @@ class MissionControlGUI:
         self.right_value = self.kpi(obstacle_frame, 2, 'Right', '-- m')
         self.obstacle_flag_value = self.kpi(obstacle_frame, 3, 'Detected', 'NO')
 
+        self.front_bar = ttk.Progressbar(
+            obstacle_frame,
+            style='Custom.Horizontal.TProgressbar',
+            orient='horizontal',
+            mode='determinate',
+            maximum=2.0,
+            value=0.0,
+        )
+        self.front_bar.grid(row=4, column=0, columnspan=2, sticky='ew', pady=(8, 2))
+
         center_row = ttk.Frame(self.root)
         center_row.pack(fill='both', expand=True, padx=14, pady=(4, 8))
 
-        left_panel = ttk.Frame(center_row)
-        left_panel.pack(side='left', fill='both', expand=True, padx=(0, 8))
-
         table_frame = ttk.LabelFrame(
-            left_panel,
+            center_row,
             text='Mission Waypoints',
             style='Dashboard.TLabelframe',
         )
-        table_frame.pack(side='top', fill='both', expand=True, pady=(0, 8))
+        table_frame.pack(side='left', fill='both', expand=True, padx=(0, 8))
 
         map_frame = ttk.LabelFrame(
-            left_panel,
+            center_row,
             text='Robot Trajectory',
             style='Dashboard.TLabelframe',
         )
-        map_frame.pack(side='top', fill='both', expand=True)
-
-        side_panel = ttk.Frame(center_row)
-        side_panel.pack(side='left', fill='y')
+        map_frame.pack(side='left', fill='both', expand=True, padx=(0, 8))
 
         mission_actions = ttk.LabelFrame(
-            side_panel,
+            center_row,
             text='Mission Control',
             style='Dashboard.TLabelframe',
+            width=300,
         )
-        mission_actions.pack(fill='x', pady=(0, 8))
-
-        completion_frame = ttk.LabelFrame(
-            side_panel,
-            text='Completion Summary',
-            style='Dashboard.TLabelframe',
-        )
-        completion_frame.pack(fill='x')
+        mission_actions.pack(side='left', fill='both', padx=(0, 0))
+        mission_actions.pack_propagate(False)
 
         # Waypoint table
+        table_content = ttk.Frame(table_frame)
+        table_content.pack(fill='both', expand=True)
+
         columns = ('index', 'x', 'y', 'theta')
         self.tree = ttk.Treeview(
-            table_frame,
+            table_content,
             columns=columns,
             show='headings',
-            height=14,
+            height=16,
         )
 
         self.tree.heading('index', text='#')
@@ -301,7 +446,7 @@ class MissionControlGUI:
         self.tree.column('y', width=120, anchor='center')
         self.tree.column('theta', width=120, anchor='center')
 
-        scrollbar = ttk.Scrollbar(table_frame, orient='vertical', command=self.tree.yview)
+        scrollbar = ttk.Scrollbar(table_content, orient='vertical', command=self.tree.yview)
         self.tree.configure(yscrollcommand=scrollbar.set)
 
         self.tree.pack(side='left', fill='both', expand=True)
@@ -328,19 +473,12 @@ class MissionControlGUI:
 
         self.map_canvas = tk.Canvas(
             map_frame,
-            height=260,
+            height=320,
             background='#fcfcfc',
             highlightthickness=1,
             highlightbackground='#d0d0d0',
         )
         self.map_canvas.pack(fill='both', expand=True)
-
-        map_buttons = ttk.Frame(map_frame)
-        map_buttons.pack(fill='x', pady=(8, 0))
-
-        ttk.Button(map_buttons, text='Clear Trail', command=self.clear_trajectory).pack(
-            side='left', padx=4
-        )
 
         # Mission action controls
         ttk.Label(mission_actions, text='Patrol Cycles').pack(anchor='w', pady=(2, 2))
@@ -359,6 +497,7 @@ class MissionControlGUI:
             mission_actions,
             text='START PATROL',
             command=self.start_patrol,
+            style='Primary.TButton',
         )
         self.start_button.pack(fill='x', pady=(2, 6))
 
@@ -367,34 +506,82 @@ class MissionControlGUI:
             text='CANCEL MISSION',
             command=self.cancel_patrol,
             state='disabled',
+            style='Danger.TButton',
         )
         self.cancel_button.pack(fill='x')
 
+        ttk.Separator(mission_actions, orient='horizontal').pack(fill='x', pady=12)
+
+        ttk.Label(
+            mission_actions,
+            text='Completion Summary',
+            style='KpiTitle.TLabel',
+        ).pack(anchor='w', pady=(0, 4))
+
         # Completion section
         self.complete_banner = ttk.Label(
-            completion_frame,
+            mission_actions,
             text='MISSION NOT STARTED',
             style='Banner.TLabel',
         )
-        self.complete_banner.pack(anchor='w', pady=(0, 8))
+        self.complete_banner.pack(anchor='w', pady=(0, 8), fill='x')
 
         self.completed_cycles_label = ttk.Label(
-            completion_frame,
+            mission_actions,
             text='Cycles completed: --',
+            background=self.colors['panel'],
         )
         self.completed_cycles_label.pack(anchor='w')
 
         self.completed_waypoints_label = ttk.Label(
-            completion_frame,
+            mission_actions,
             text='Waypoints completed: -- / --',
+            background=self.colors['panel'],
         )
         self.completed_waypoints_label.pack(anchor='w', pady=(4, 0))
 
-        status_frame = ttk.LabelFrame(self.root, text='System Status', style='Dashboard.TLabelframe')
+        ttk.Separator(mission_actions, orient='horizontal').pack(fill='x', pady=12)
+
+        ttk.Label(
+            mission_actions,
+            text='Quick Actions',
+            style='KpiTitle.TLabel',
+        ).pack(anchor='w', pady=(0, 6))
+
+        ttk.Button(mission_actions, text='Clear Trail', command=self.clear_trajectory).pack(
+            fill='x'
+        )
+
+        # Simulated rounded edge cards using padded background containers.
+        self.apply_soft_card(table_frame)
+        self.apply_soft_card(map_frame)
+        self.apply_soft_card(mission_actions)
+
+        status_frame = ttk.LabelFrame(self.root, text='System Message', style='Dashboard.TLabelframe')
         status_frame.pack(fill='x', padx=14, pady=(2, 14))
 
-        self.status_label = ttk.Label(status_frame, text='READY', font=('TkDefaultFont', 12, 'bold'))
+        self.status_badge = tk.Label(
+            status_frame,
+            text='READY',
+            bg=self.colors['accent_soft'],
+            fg=self.colors['accent'],
+            padx=12,
+            pady=4,
+            font=('TkDefaultFont', 10, 'bold'),
+        )
+        self.status_badge.pack(anchor='w', pady=(0, 6))
+
+        self.status_label = ttk.Label(
+            status_frame,
+            text='READY',
+            font=('TkDefaultFont', 12, 'bold'),
+            background=self.colors['panel'],
+        )
         self.status_label.pack(anchor='w')
+
+    def apply_soft_card(self, frame):
+
+        frame.configure(padding=14)
 
     def kpi(self, parent, row, title, value):
 
@@ -834,12 +1021,29 @@ class MissionControlGUI:
         self.distance_value.config(text=self.format_distance(distance))
         self.nav_state_value.config(text=nav_state)
 
+        cycle_pct = 0.0
+        if cycle_target > 0:
+            cycle_progress_value = self.current_cycle if self.mission_active else self.completed_cycles
+            cycle_pct = max(0.0, min(100.0, (100.0 * cycle_progress_value) / cycle_target))
+        self.cycle_progress['value'] = cycle_pct
+
+        waypoint_pct = 0.0
+        if waypoint_total > 0:
+            waypoint_progress_value = self.current_waypoint if self.mission_active else waypoint_total
+            waypoint_pct = max(0.0, min(100.0, (100.0 * waypoint_progress_value) / waypoint_total))
+        self.waypoint_progress['value'] = waypoint_pct
+
         online_text = 'ONLINE' if self.robot_online() else 'OFFLINE'
         self.robot_link_value.config(text=f'● {online_text}')
         self.robot_state_value.config(text=nav_state)
         self.robot_pose_value.config(
             text=f'x={self.robot_x:.2f}, y={self.robot_y:.2f}, th={self.robot_theta:.2f}'
         )
+
+        if online_text == 'ONLINE':
+            self.robot_health_chip.config(bg='#dcfce7', fg='#166534', text='ONLINE')
+        else:
+            self.robot_health_chip.config(bg='#fee2e2', fg='#991b1b', text='OFFLINE')
 
         elapsed = '--'
         if self.mission_started_at is not None:
@@ -859,6 +1063,23 @@ class MissionControlGUI:
         obstacle_text = 'YES' if (self.obstacle_online() and self.obstacle_detected) else 'NO'
         self.obstacle_flag_value.config(text=obstacle_text)
 
+        front_bar_value = 0.0
+        if self.obstacle_online() and math.isfinite(self.front_distance):
+            front_bar_value = max(0.0, min(2.0, self.front_distance))
+        self.front_bar['value'] = front_bar_value
+
+        if nav_state == 'AVOID_OBSTACLE':
+            state_color = self.colors['warning']
+        elif nav_state == 'FOLLOW_GOAL':
+            state_color = self.colors['success']
+        elif nav_state == 'WAITING_GOAL':
+            state_color = self.colors['accent']
+        else:
+            state_color = self.colors['muted']
+
+        self.nav_state_value.config(foreground=state_color)
+        self.robot_state_value.config(foreground=state_color)
+
         self.draw_trajectory_map()
 
         self.root.after(150, self.refresh_dashboard)
@@ -870,6 +1091,19 @@ class MissionControlGUI:
     def update_mission_status(self, text):
 
         self.status_label.config(text=text)
+
+        status_upper = text.upper()
+        if 'COMPLETE' in status_upper:
+            self.status_badge.config(text='COMPLETE', bg='#dcfce7', fg='#166534')
+        elif 'FAILED' in status_upper or 'ERROR' in status_upper:
+            self.status_badge.config(text='ALERT', bg='#fee2e2', fg='#991b1b')
+        elif 'CANCEL' in status_upper:
+            self.status_badge.config(text='CANCELLED', bg='#ffedd5', fg='#9a3412')
+        elif 'RUNNING' in status_upper or 'WAITING' in status_upper or 'SENDING' in status_upper:
+            self.status_badge.config(text='ACTIVE', bg='#dbeafe', fg='#1d4ed8')
+        else:
+            self.status_badge.config(text='READY', bg=self.colors['accent_soft'], fg=self.colors['accent'])
+
         self.root.update_idletasks()
 
     def reset_buttons(self):
