@@ -95,8 +95,8 @@ class PatrolServer(Node):
 
         self.get_logger().info(
             f'Accepted patrol request using configuration: '
-            f'{len(self.configured_waypoints)} waypoints, '
-            f'{self.patrol_cycles} cycles.'
+            f'{len(goal_request.waypoints)} waypoints, '
+            f'{goal_request.patrol_cycles} cycles.'
         )
 
         return GoalResponse.ACCEPT
@@ -148,8 +148,8 @@ class PatrolServer(Node):
             'Executing patrol mission.'
         )
 
-        waypoints = self.configured_waypoints
-        patrol_cycles = self.patrol_cycles
+        waypoints = goal_handle.request.waypoints
+        patrol_cycles = goal_handle.request.patrol_cycles
 
         result = Patrol.Result()
 

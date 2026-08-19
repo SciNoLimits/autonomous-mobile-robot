@@ -33,6 +33,7 @@ setup(
             'obstacle_avoidance = amr_navigation.obstacle_avoidance:main',
             'cmd_arbitrator = amr_navigation.cmd_arbitrator:main',
             'tf_pose_monitor = amr_navigation.tf_pose_monitor:main',
+            'mission_control_gui = amr_navigation.mission_control_gui:main',
         ],
     },
 )
