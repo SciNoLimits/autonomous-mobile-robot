@@ -62,6 +62,11 @@ class MissionControlGUI:
         self.robot_x = 0.0
         self.robot_y = 0.0
         self.robot_theta = 0.0
+        self.trajectory_points = []
+        self.max_trajectory_points = 2500
+        self.last_trail_x = None
+        self.last_trail_y = None
+        self.trail_min_step = 0.03
 
         self.front_distance = float('inf')
         self.left_distance = float('inf')
@@ -143,6 +148,21 @@ class MissionControlGUI:
         q = msg.pose.pose.orientation
         _, _, yaw = euler_from_quaternion([q.x, q.y, q.z, q.w])
         self.robot_theta = yaw
+
+        if self.last_trail_x is None or self.last_trail_y is None:
+            self.trajectory_points.append((self.robot_x, self.robot_y))
+            self.last_trail_x = self.robot_x
+            self.last_trail_y = self.robot_y
+        else:
+            dx = self.robot_x - self.last_trail_x
+            dy = self.robot_y - self.last_trail_y
+            if math.hypot(dx, dy) >= self.trail_min_step:
+                self.trajectory_points.append((self.robot_x, self.robot_y))
+                self.last_trail_x = self.robot_x
+                self.last_trail_y = self.robot_y
+
+        if len(self.trajectory_points) > self.max_trajectory_points:
+            self.trajectory_points = self.trajectory_points[-self.max_trajectory_points :]
 
         self.last_odom_time = time.time()
 
@@ -228,12 +248,22 @@ class MissionControlGUI:
         center_row = ttk.Frame(self.root)
         center_row.pack(fill='both', expand=True, padx=14, pady=(4, 8))
 
+        left_panel = ttk.Frame(center_row)
+        left_panel.pack(side='left', fill='both', expand=True, padx=(0, 8))
+
         table_frame = ttk.LabelFrame(
-            center_row,
+            left_panel,
             text='Mission Waypoints',
             style='Dashboard.TLabelframe',
         )
-        table_frame.pack(side='left', fill='both', expand=True, padx=(0, 8))
+        table_frame.pack(side='top', fill='both', expand=True, pady=(0, 8))
+
+        map_frame = ttk.LabelFrame(
+            left_panel,
+            text='Robot Trajectory',
+            style='Dashboard.TLabelframe',
+        )
+        map_frame.pack(side='top', fill='both', expand=True)
 
         side_panel = ttk.Frame(center_row)
         side_panel.pack(side='left', fill='y')
@@ -293,6 +323,22 @@ class MissionControlGUI:
             side='left', padx=4
         )
         ttk.Button(waypoint_buttons, text='Reload YAML', command=self.reload_yaml).pack(
+            side='left', padx=4
+        )
+
+        self.map_canvas = tk.Canvas(
+            map_frame,
+            height=260,
+            background='#fcfcfc',
+            highlightthickness=1,
+            highlightbackground='#d0d0d0',
+        )
+        self.map_canvas.pack(fill='both', expand=True)
+
+        map_buttons = ttk.Frame(map_frame)
+        map_buttons.pack(fill='x', pady=(8, 0))
+
+        ttk.Button(map_buttons, text='Clear Trail', command=self.clear_trajectory).pack(
             side='left', padx=4
         )
 
@@ -455,6 +501,15 @@ class MissionControlGUI:
         self.refresh_table()
 
         self.update_mission_status('Configuration reloaded from YAML.')
+
+    def clear_trajectory(self):
+
+        self.trajectory_points = []
+        self.last_trail_x = self.robot_x
+        self.last_trail_y = self.robot_y
+        self.trajectory_points.append((self.robot_x, self.robot_y))
+
+        self.update_mission_status('Trajectory trail cleared.')
 
     # ======================================================
     # Patrol action
@@ -658,6 +713,96 @@ class MissionControlGUI:
 
         return (now - self.last_obstacle_time) <= 1.5
 
+    def map_to_canvas(self, x, y, min_x, min_y, scale, pad, canvas_h):
+
+        canvas_x = pad + (x - min_x) * scale
+        canvas_y = canvas_h - (pad + (y - min_y) * scale)
+        return canvas_x, canvas_y
+
+    def draw_trajectory_map(self):
+
+        if not hasattr(self, 'map_canvas'):
+            return
+
+        self.map_canvas.delete('all')
+
+        self.map_canvas.update_idletasks()
+        canvas_w = max(300, self.map_canvas.winfo_width())
+        canvas_h = max(200, self.map_canvas.winfo_height())
+        pad = 24
+
+        points = list(self.trajectory_points)
+        points.append((self.robot_x, self.robot_y))
+        waypoint_points = [(wp['x'], wp['y']) for wp in self.waypoints]
+        all_points = points + waypoint_points
+
+        if not all_points:
+            self.map_canvas.create_text(
+                canvas_w / 2,
+                canvas_h / 2,
+                text='Waiting for robot and waypoint data...',
+                fill='#666666',
+            )
+            return
+
+        min_x = min(p[0] for p in all_points)
+        max_x = max(p[0] for p in all_points)
+        min_y = min(p[1] for p in all_points)
+        max_y = max(p[1] for p in all_points)
+
+        span_x = max(0.5, max_x - min_x)
+        span_y = max(0.5, max_y - min_y)
+
+        min_x -= 0.15 * span_x
+        max_x += 0.15 * span_x
+        min_y -= 0.15 * span_y
+        max_y += 0.15 * span_y
+
+        scale_x = (canvas_w - (2 * pad)) / max(1e-9, (max_x - min_x))
+        scale_y = (canvas_h - (2 * pad)) / max(1e-9, (max_y - min_y))
+        scale = min(scale_x, scale_y)
+
+        self.map_canvas.create_rectangle(pad, pad, canvas_w - pad, canvas_h - pad, outline='#d8d8d8')
+
+        # Draw axis lines when visible in current map window.
+        if min_x <= 0.0 <= max_x:
+            x0, y0 = self.map_to_canvas(0.0, min_y, min_x, min_y, scale, pad, canvas_h)
+            x1, y1 = self.map_to_canvas(0.0, max_y, min_x, min_y, scale, pad, canvas_h)
+            self.map_canvas.create_line(x0, y0, x1, y1, fill='#e2e2e2', dash=(4, 4))
+
+        if min_y <= 0.0 <= max_y:
+            x0, y0 = self.map_to_canvas(min_x, 0.0, min_x, min_y, scale, pad, canvas_h)
+            x1, y1 = self.map_to_canvas(max_x, 0.0, min_x, min_y, scale, pad, canvas_h)
+            self.map_canvas.create_line(x0, y0, x1, y1, fill='#e2e2e2', dash=(4, 4))
+
+        if len(points) >= 2:
+            canvas_trail = []
+            for trail_x, trail_y in points:
+                px, py = self.map_to_canvas(trail_x, trail_y, min_x, min_y, scale, pad, canvas_h)
+                canvas_trail.extend([px, py])
+            self.map_canvas.create_line(*canvas_trail, fill='#2f6db5', width=2)
+
+        for index, waypoint in enumerate(self.waypoints, start=1):
+            wx, wy = self.map_to_canvas(waypoint['x'], waypoint['y'], min_x, min_y, scale, pad, canvas_h)
+            self.map_canvas.create_oval(wx - 4, wy - 4, wx + 4, wy + 4, fill='#d9534f', outline='')
+            self.map_canvas.create_text(wx + 10, wy - 8, text=f'W{index}', anchor='w', fill='#444444')
+
+        rx, ry = self.map_to_canvas(self.robot_x, self.robot_y, min_x, min_y, scale, pad, canvas_h)
+        self.map_canvas.create_oval(rx - 6, ry - 6, rx + 6, ry + 6, fill='#2ca25f', outline='')
+
+        heading_length = 16
+        hx = rx + heading_length * math.cos(self.robot_theta)
+        hy = ry - heading_length * math.sin(self.robot_theta)
+        self.map_canvas.create_line(rx, ry, hx, hy, fill='#1c7a47', width=2)
+
+        self.map_canvas.create_text(
+            pad + 2,
+            pad + 2,
+            anchor='nw',
+            fill='#555555',
+            text='Trajectory: blue | Robot: green | Waypoints: red',
+        )
+
     def refresh_dashboard(self):
 
         now = time.time()
@@ -713,6 +858,8 @@ class MissionControlGUI:
 
         obstacle_text = 'YES' if (self.obstacle_online() and self.obstacle_detected) else 'NO'
         self.obstacle_flag_value.config(text=obstacle_text)
+
+        self.draw_trajectory_map()
 
         self.root.after(150, self.refresh_dashboard)
 
