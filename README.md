@@ -34,18 +34,6 @@ The system is designed with a modular ROS 2 architecture so that individual comp
 - [x] Safety and emergency obstacle handling
 - [x] Full system integration testing
 
-### Planned
-
-- [ ] TF2 validation and coordinate-frame architecture
-- [ ] 2D SLAM
-- [ ] Map creation and persistence
-- [ ] AMCL localization
-- [ ] Nav2 integration
-- [ ] Advanced mission planning
-- [ ] Perception extensions
-- [ ] Real-robot deployment and robustness testing
-
----
 
 # 1. Project Overview
 
@@ -73,10 +61,6 @@ Command Arbitration
 Safety Handling
        ↓
 Full System Integration
-       ↓
-SLAM & Localization
-       ↓
-Nav2
 ````
 
 This approach provides a clear understanding of the underlying robotics architecture before moving toward higher-level navigation frameworks.
@@ -85,84 +69,572 @@ This approach provides a clear understanding of the underlying robotics architec
 
 # 2. System Architecture
 
-The current system is organized into several independent ROS 2 nodes.
+The AMR is designed as a modular ROS 2 system in which mission execution, motion control, perception, obstacle avoidance, and command arbitration are separated into independent components.
+
+The architecture follows a hierarchical control structure:
 
 ```text
-                         ┌──────────────────────┐
-                         │     Patrol Server    │
-                         │    /patrol Action    │
-                         └──────────┬───────────┘
-                                    │
-                                    ▼
-                         ┌──────────────────────┐
-                         │   Waypoint Server    │
-                         │ /navigate_waypoints  │
-                         └──────────┬───────────┘
-                                    │
-                              Goal Pose
-                                    │
-                                    ▼
-                         ┌──────────────────────┐
-                         │      Controller      │
-                         │  Siegwart Feedback   │
-                         └──────────┬───────────┘
-                                    │
-                            /navigation_cmd
-                                    │
-                                    ▼
-                         ┌──────────────────────┐
-                         │   Command Arbitrator │
-                         └──────────┬───────────┘
-                                    │
-                                  /cmd_vel
-                                    │
-                                    ▼
-                             ┌────────────┐
-                             │ TurtleBot3 │
-                             └─────┬──────┘
-                                   │
-                                  /scan
-                                   │
-                                   ▼
-                         ┌──────────────────────┐
-                         │  Obstacle Detector   │
-                         └──────────┬───────────┘
-                                    │
-                           /obstacle_status
-                                    │
-                                    ▼
-                         ┌──────────────────────┐
-                         │  Obstacle Avoidance  │
-                         └──────────┬───────────┘
-                                    │
-                            /avoidance_cmd
-                                    │
-                                    └──────────────►
+                                      ┌──────────────────────────────┐
+                                      │          AMR BRINGUP         │
+                                      │       amr_bringup package    │
+                                      │                              │
+                                      │  ros2 launch amr_bringup     │
+                                      │       bringup.launch.py      │
+                                      └──────────────┬───────────────┘
+                                                     │
+                              ┌──────────────────────┴──────────────────────┐
+                              │                                             │
+                              ▼                                             ▼
+                 ┌─────────────────────────┐                    ┌─────────────────────────┐
+                 │    amr_navigation       │                    │   mission_control_gui   │
+                 │        package          │                    │         node            │
+                 │                         │                    │                         │
+                 │                         │                    │ User selects mission    │
+                 │                         │                    │ and monitors progress   │
+                 └────────────┬────────────┘                    └───────────┬─────────────┘
+                              │                                             │
+                              │                                             │ /patrol
+                              │                                             │ Action
+                              │                                             ▼
+                              │                                  ┌─────────────────────────┐
+                              │                                  │     Patrol Server       │
+                              │                                  │                         │
+                              │                                  │  High-level mission     │
+                              │                                  │      execution          │
+                              │                                  └───────────┬─────────────┘
+                              │                                              │
+                              │                                              │
+                              │                                  NavigateWaypoints Action
+                              │                                              │
+                              │                                              ▼
+                              │                                  ┌─────────────────────────┐
+                              │                                  │    Waypoint Server      │
+                              │                                  │                         │
+                              │                                  │  Sequential waypoint    │
+                              │                                  │      execution          │
+                              │                                  └───────────┬─────────────┘
+                              │                                              │
+                              │                                              │ Goal Pose
+                              │                                              ▼
+                              │                                  ┌─────────────────────────┐
+                              │                                  │       Controller        │
+                              │                                  │                         │
+                              │                                  │  Siegwart Feedback      │
+                              │                                  │       Control           │
+                              │                                  └───────────┬─────────────┘
+                              │                                              │
+                              │                                      /navigation_cmd
+                              │                                              │
+                              │                                              ▼
+                              │                                  ┌─────────────────────────┐
+                              │                                  │   Command Arbitrator    │
+                              │                                  │                         │
+                              │                                  │ Selects the command     │
+                              │                                  │ allowed to control      │
+                              │                                  │       the robot         │
+                              │                                  └───────────┬─────────────┘
+                              │                                              │
+                              │                                           /cmd_vel
+                              │                                              │
+                              │                                              ▼
+                              │                                  ┌─────────────────────────┐
+                              │                                  │       TurtleBot3        │
+                              │                                  │         Burger          │
+                              │                                  │                         │
+                              │                                  │     Simulated Robot     │
+                              │                                  └───────────┬─────────────┘
+                              │                                              │
+                              │                         ┌────────────────────┴────────────────────┐
+                              │                         │                                         │
+                              │                       /scan                                     /odom
+                              │                         │                                         │
+                              │                         ▼                                         ▼
+                              │              ┌─────────────────────────┐             ┌─────────────────────────┐
+                              │              │   Obstacle Detector     │             │     Pose / TF2          │
+                              │              │                         │             │       Feedback          │
+                              │              │ Processes LaserScan     │             │                         │
+                              │              │ and calculates obstacle │             │ Current robot pose      │
+                              │              │ distances/status        │             │ for controller          │
+                              │              └────────────┬────────────┘             └────────────┬────────────┘
+                              │                           │                                     │
+                              │                    /obstacle_status                             │
+                              │                           │                                     │
+                              │                           ▼                                     │
+                              │              ┌─────────────────────────┐                        │
+                              │              │   Obstacle Avoidance    │                        │
+                              │              │                         │                        │
+                              │              │ Reactive obstacle       │                        │
+                              │              │ avoidance + safety      │                        │
+                              │              └────────────┬────────────┘                        │
+                              │                           │                                     │
+                              │                    /avoidance_cmd                               │
+                              │                           │                                     │
+                              │                           └─────────────────┐                   │
+                              │                                             │                   │
+                              │                                             ▼                   │
+                              │                                  ┌─────────────────────────┐    │
+                              │                                  │   Command Arbitrator    │◄───┘
+                              │                                  │                         │
+                              │                                  │ Navigation command      │
+                              │                                  │ vs. avoidance command   │
+                              │                                  └───────────┬─────────────┘
+                              │                                              │
+                              │                                           /cmd_vel
+                              │                                              │
+                              │                                              ▼
+                              │                                         TurtleBot3
+                              │                                              ▲
+                              └──────────────────────────────────────────────|
 ```
 
-The key design principle is **separation of responsibilities**.
+## 2.1 Top-Level Bringup
 
-The navigation controller does not directly compete with the obstacle avoidance controller for `/cmd_vel`.
+The system provides a single top-level bringup entry point:
 
-Instead:
+```bash
+ros2 launch amr_bringup bringup.launch.py
+```
+
+The bringup launch file is responsible for starting the major components required for a complete AMR demonstration.
+
+Conceptually:
 
 ```text
-Controller
-    │
-    └── /navigation_cmd
-             │
-             ▼
-       Command Arbitrator
-             ▲
-             │
-    /avoidance_cmd
-             │
-     Obstacle Avoidance
+amr_bringup
+     │
+     ├── amr_navigation
+     │      │
+     │      ├── navigation nodes
+     │      ├── obstacle detection
+     │      ├── obstacle avoidance
+     │      └── command arbitration
+     │
+     └── mission_control_gui
 ```
 
-The arbitrator determines which command should ultimately be sent to the robot.
+This provides a reproducible system startup procedure instead of requiring the user to manually launch individual ROS 2 nodes.
 
 ---
+
+## 2.2 Mission Layer
+
+The mission layer contains the high-level behaviors that define what the robot should accomplish.
+
+The main mission interface is the `Patrol` ROS 2 Action.
+
+```text
+Mission Control GUI
+        │
+        │ Patrol Action
+        ▼
+  Patrol Server
+        │
+        │ NavigateWaypoints Action
+        ▼
+ Waypoint Server
+```
+
+The Patrol Server therefore operates at a higher abstraction level than the waypoint server.
+
+A patrol mission can contain multiple waypoints and multiple patrol cycles.
+
+For example:
+
+```text
+Patrol Mission
+      │
+      ├── Cycle 1
+      │     ├── Waypoint 1
+      │     ├── Waypoint 2
+      │     ├── Waypoint 3
+      │     └── Waypoint 4
+      │
+      ├── Cycle 2
+      │     ├── Waypoint 1
+      │     ├── Waypoint 2
+      │     ├── Waypoint 3
+      │     └── Waypoint 4
+      │
+      └── ...
+```
+
+This hierarchical structure allows higher-level missions to reuse lower-level navigation capabilities.
+
+---
+
+## 2.3 Navigation Layer
+
+The navigation layer is responsible for moving the robot toward individual target poses.
+
+The `NavigateWaypoints` Action Server receives a sequence of waypoints and executes them sequentially.
+
+```text
+NavigateWaypoints
+        │
+        ▼
+Waypoint Server
+        │
+        ├── Waypoint 1
+        ├── Waypoint 2
+        ├── Waypoint 3
+        └── ...
+                │
+                ▼
+          Motion Controller
+```
+
+The waypoint server does not directly publish the final `/cmd_vel` command.
+
+Instead, it provides target poses to the low-level controller.
+
+This keeps mission execution separate from velocity generation.
+
+---
+
+## 2.4 Motion Control Layer
+
+The motion controller implements the custom Siegwart feedback control law.
+
+The controller receives the desired robot pose and the current robot pose obtained from odometry/TF.
+
+It calculates the required linear and angular velocities:
+
+```text
+Current Pose
+     │
+     ▼
+Pose Error
+     │
+     ▼
+Siegwart Controller
+     │
+     ├── Linear velocity
+     └── Angular velocity
+             │
+             ▼
+     /navigation_cmd
+```
+
+The controller publishes to:
+
+```text
+/navigation_cmd
+```
+
+rather than directly publishing to `/cmd_vel`.
+
+This is an intentional architectural decision that prevents the navigation controller from competing with the obstacle avoidance system.
+
+---
+
+## 2.5 Perception Layer
+
+The robot's LiDAR provides raw range measurements through:
+
+```text
+/scan
+```
+
+The obstacle detector converts these raw measurements into a higher-level obstacle representation.
+
+```text
+TurtleBot3 LiDAR
+       │
+       ▼
+     /scan
+       │
+       ▼
+Obstacle Detector
+       │
+       ▼
+/obstacle_status
+```
+
+The obstacle status contains information such as:
+
+```text
+front_distance
+left_distance
+right_distance
+obstacle_detected
+```
+
+This separates sensor processing from the decision-making logic of obstacle avoidance.
+
+---
+
+## 2.6 Reactive Obstacle Avoidance
+
+The obstacle avoidance node consumes the processed obstacle information.
+
+```text
+/obstacle_status
+        │
+        ▼
+Obstacle Avoidance
+        │
+        ├── CLEAR
+        │
+        └── AVOID
+              │
+              ▼
+       /avoidance_cmd
+```
+
+When the path is clear, the avoidance system does not interfere with normal navigation.
+
+When an obstacle is detected, it generates an avoidance command.
+
+For critically close obstacles, safety behavior takes priority over normal navigation.
+
+---
+
+## 2.7 Command Arbitration
+
+The command arbitrator is the final authority responsible for selecting the velocity command sent to the robot.
+
+It receives two command sources:
+
+```text
+/navigation_cmd
+        │
+        ├──────────────┐
+                       ▼
+                Command Arbitrator
+                       ▲
+        |──────────────┤
+        │
+/avoidance_cmd
+```
+
+The arbitrator publishes the final command:
+
+```text
+/cmd_vel
+```
+
+Therefore:
+
+```text
+Navigation Controller ──► /navigation_cmd ─┐
+                                           │
+                                           ▼
+                                    Command Arbitrator
+                                           │
+                                           ▼
+                                        /cmd_vel
+                                           │
+                                           ▼
+                                      TurtleBot3
+```
+
+During normal operation:
+
+```text
+/navigation_cmd
+       ↓
+Command Arbitrator
+       ↓
+     /cmd_vel
+```
+
+During obstacle avoidance:
+
+```text
+/avoidance_cmd
+       ↓
+Command Arbitrator
+       ↓
+     /cmd_vel
+```
+
+This architecture ensures that multiple nodes do not directly compete for control of `/cmd_vel`.
+
+---
+
+## 2.8 Safety Priority
+
+Safety behavior has higher priority than normal navigation.
+
+The command flow can therefore be viewed as:
+
+```text
+             Navigation Command
+                    │
+                    ▼
+              ┌───────────┐
+              │           │
+              │ Arbitrator│
+              │           │
+              └─────┬─────┘
+                    │
+                    │
+          ┌─────────┴─────────┐
+          │                   │
+      Normal Motion       Obstacle/Safety
+          │                   │
+          └─────────┬─────────┘
+                    ▼
+                 /cmd_vel
+```
+
+The key principle is:
+
+> **Navigation determines where the robot should go; safety determines whether that motion is currently allowed.**
+
+This separation makes the system easier to reason about and extend.
+
+---
+
+## 2.9 ROS 2 Communication Architecture
+
+The major communication interfaces are:
+
+| Source             | Interface                    | Destination        | Purpose                           |
+| ------------------ | ---------------------------- | ------------------ | --------------------------------- |
+| Mission GUI        | `/patrol` Action             | Patrol Server      | Start and monitor patrol missions |
+| Patrol Server      | `/navigate_waypoints` Action | Waypoint Server    | Execute waypoint sequences        |
+| Waypoint Server    | Goal pose                    | Controller         | Provide navigation target         |
+| Controller         | `/navigation_cmd`            | Command Arbitrator | Normal navigation velocity        |
+| TurtleBot3         | `/scan`                      | Obstacle Detector  | LiDAR measurements                |
+| Obstacle Detector  | `/obstacle_status`           | Obstacle Avoidance | Processed obstacle information    |
+| Obstacle Avoidance | `/avoidance_cmd`             | Command Arbitrator | Reactive/safety velocity          |
+| Command Arbitrator | `/cmd_vel`                   | TurtleBot3         | Final velocity command            |
+| TurtleBot3         | `/odom`                      | Navigation/Control | Robot motion feedback             |
+
+---
+
+## 2.10 Architectural Principles
+
+The system follows several important robotics software architecture principles.
+
+### Separation of Concerns
+
+Each ROS 2 node has a clearly defined responsibility.
+
+```text
+Patrol Server
+    → mission execution
+
+Waypoint Server
+    → waypoint sequencing
+
+Controller
+    → motion control
+
+Obstacle Detector
+    → sensor interpretation
+
+Obstacle Avoidance
+    → reactive behavior
+
+Command Arbitrator
+    → final command selection
+```
+
+### Hierarchical Control
+
+Higher-level behaviors reuse lower-level capabilities:
+
+```text
+Patrol
+   ↓
+NavigateWaypoints
+   ↓
+Motion Controller
+   ↓
+Robot
+```
+
+### Single Command Authority
+
+Only the command arbitrator publishes the final `/cmd_vel`.
+
+This avoids conflicting velocity publishers.
+
+### Safety Priority
+
+Obstacle avoidance and safety behavior can override normal navigation.
+
+### Modular Development
+
+Each subsystem can be launched, tested, and debugged independently before being integrated through the top-level bringup system.
+
+### Configuration-Driven Behavior
+
+Controller parameters and patrol missions are configured through YAML where appropriate, reducing the need to modify source code for routine changes.
+
+---
+
+## 2.11 Complete System Data Flow
+
+The complete system can be summarized as:
+
+```text
+                  MISSION
+                     │
+                     ▼
+              Mission Control GUI
+                     │
+                     ▼
+               Patrol Action
+                     │
+                     ▼
+               Patrol Server
+                     │
+                     ▼
+          NavigateWaypoints Action
+                     │
+                     ▼
+             Waypoint Server
+                     │
+                     ▼
+              Motion Controller
+                     │
+                     │ /navigation_cmd
+                     ▼
+              Command Arbitrator ◄──────── /avoidance_cmd
+                     │                         ▲
+                     │                         │
+                     │                    Obstacle Avoidance
+                     │                         ▲
+                     │                         │
+                     │                  /obstacle_status
+                     │                         ▲
+                     │                         │
+                     │                  Obstacle Detector
+                     │                         ▲
+                     │                         │
+                     ▼                         │
+                  /cmd_vel                   /scan
+                     │                         ▲
+                     ▼                         │
+                 TurtleBot3 ───────────────────┘
+```
+
+The architecture therefore separates the AMR into five major functional layers:
+
+```text
+┌─────────────────────────────────────────┐
+│  Mission Layer                          │
+│  GUI → Patrol → Waypoint Navigation     │
+├─────────────────────────────────────────┤
+│  Control Layer                          │
+│  Siegwart Motion Controller             │
+├─────────────────────────────────────────┤
+│  Perception Layer                       │
+│  LiDAR → Obstacle Detection             │
+├─────────────────────────────────────────┤
+│  Safety / Behavior Layer                │
+│  Obstacle Avoidance                     │
+├─────────────────────────────────────────┤
+│  Actuation Layer                        │
+│  Command Arbitration → /cmd_vel         │
+└─────────────────────────────────────────┘
+```
+
+This modular architecture provides a foundation for future integration of SLAM, localization, Nav2, advanced perception, and real-robot deployment.
+
 
 # 3. Technology Stack
 
@@ -1214,5 +1686,3 @@ The next major milestone is:
 Robotics Engineer
 
 ---
-
-
