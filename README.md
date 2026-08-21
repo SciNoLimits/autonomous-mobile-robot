@@ -32,7 +32,7 @@ The system is designed with a modular ROS 2 architecture so that individual comp
 - [x] Obstacle avoidance state handling
 - [x] Navigation/avoidance command arbitration
 - [x] Safety and emergency obstacle handling
-- [x] Full system integration testing
+- [x] Manual full-system validation
 
 
 # 1. Project Overview
@@ -61,7 +61,7 @@ Command Arbitration
 Safety Handling
        ↓
 Full System Integration
-````
+```
 
 This approach provides a clear understanding of the underlying robotics architecture before moving toward higher-level navigation frameworks.
 
@@ -643,7 +643,7 @@ This modular architecture provides a foundation for future integration of SLAM, 
 | Operating System          | Ubuntu 24.04 LTS                   |
 | Middleware                | ROS 2 Jazzy Jalisco                |
 | Robot                     | TurtleBot3 Burger                  |
-| Simulator                 | Gazebo                             |
+| Simulator                 | Gazebo Sim via `ros_gz_sim`       |
 | Programming               | Python                             |
 | Robot Control             | Siegwart feedback control          |
 | Communication             | ROS 2 Topics, Services and Actions |
@@ -676,16 +676,29 @@ amr_ws/
 │       │   │   └── controller.launch.py
 │       │   └── ...
 │       │
+│       ├── amr_perception/
+│       │   ├── amr_perception/
+│       │   │   └── obstacle_detector.py
+│       │   └── ...
+│       │
 │       ├── amr_navigation/
 │       │   ├── amr_navigation/
 │       │   │   ├── waypoint_server.py
 │       │   │   ├── patrol_server.py
-│       │   │   ├── obstacle_detector.py
 │       │   │   ├── obstacle_avoidance.py
-│       │   │   └── cmd_arbitrator.py
+│       │   │   ├── cmd_arbitrator.py
+│       │   │   ├── mission_control_gui.py
+│       │   │   └── tf_pose_monitor.py
 │       │   ├── config/
 │       │   ├── launch/
 │       │   └── ...
+│       │
+│       ├── amr_bringup/
+│       │   └── launch/bringup.launch.py
+│       │
+│       ├── amr_simulation/
+│       │   ├── launch/simulation.launch.py
+│       │   └── worlds/amr_world.sdf
 │       │
 │       └── ...
 │
@@ -962,22 +975,31 @@ This allows patrol missions to be changed without modifying the navigation code.
 
 # 9. Launch System
 
-The project uses Python-based ROS 2 launch files.
-
-The launch architecture was developed incrementally.
-
-Individual components can be launched independently, while a higher-level launch file can include multiple subsystems.
+The project uses Python-based ROS 2 launch files. Components can be launched independently, while the top-level bringup includes the complete demonstration stack.
 
 For example:
 
 ```text
-AMR Launch
-    │
-    ├── Gazebo / TurtleBot3
-    │
-    ├── Controller Launch
-    │
-    └── Patrol Launch
+bringup.launch.py
+       │
+       ├── amr.launch.py
+       │   ├── Gazebo Sim and TurtleBot3 spawn
+       │   ├── ROS-Gazebo bridge
+       │   ├── Controller
+       │   ├── Patrol server
+       │   ├── Obstacle detector
+       │   ├── Obstacle avoidance
+       │   └── Command arbitrator
+       │
+       └── Mission control GUI
+```
+
+The simulation launch starts `ros_gz_sim` with the custom `amr_world.sdf`, spawns the TurtleBot3, publishes robot state, and runs `ros_gz_bridge`. The bridge converts the ROS 2 `/cmd_vel` `TwistStamped` message to the Gazebo `Twist` command expected by the simulator.
+
+Start the complete stack with:
+
+```bash
+ros2 launch amr_bringup bringup.launch.py
 ```
 
 This makes system startup repeatable and reduces the need to manually launch every node.
@@ -1038,6 +1060,8 @@ containing:
 front_distance
 left_distance
 right_distance
+closest_obstacle_x
+closest_obstacle_y
 obstacle_detected
 ```
 
@@ -1058,16 +1082,16 @@ The detector therefore provides a higher-level representation of the raw LiDAR d
 
 A dedicated obstacle avoidance node consumes the obstacle information.
 
-When an obstacle is detected in front of the robot, the system selects an avoidance direction based on the available space.
+When an obstacle is detected in front of the robot, the system first uses the closest obstacle's lateral position in `base_link` to choose the opposite turn direction. If the obstacle is approximately centered, it compares left and right clearance and chooses the side with more space.
 
 For example:
 
 ```text
 Obstacle detected
        ↓
-Compare left/right clearance
+Use closest obstacle lateral position
        ↓
-Choose direction
+Compare left/right clearance if centered
        ↓
 Rotate
        ↓
@@ -1080,14 +1104,16 @@ Return to CLEAR state
 
 The obstacle avoidance system was implemented as a state-based reactive behavior.
 
-Typical states include:
+Obstacle avoidance states include:
 
 ```text
 CLEAR
-AVOID
+TURN_LEFT
+TURN_RIGHT
+STOP
 ```
 
-The robot returns to the normal navigation command once the obstacle is sufficiently clear.
+The command arbitrator separately manages `FOLLOW_GOAL`, `AVOID_OBSTACLE`, `REJOIN_NAVIGATION`, and `EMERGENCY_STOP`. The robot returns to navigation when the obstacle is sufficiently clear; a front distance below `0.20 m` forces an emergency stop.
 
 ---
 
@@ -1187,7 +1213,7 @@ The behavior was tested as part of the obstacle-aware navigation system.
 
 # 15. M4.5 — Full System Integration
 
-The final stage of the current development phase was full integration testing.
+The final stage of the current development phase was manual full-system validation.
 
 The complete system was tested with:
 
@@ -1201,7 +1227,7 @@ The complete system was tested with:
 * Navigation recovery
 * Multiple ROS 2 nodes operating together
 
-The integration test passed successfully.
+The integrated stack was exercised manually with the scenarios listed above. The repository's package test directories currently provide copyright, flake8, and pep257 checks; they do not contain an automated Gazebo integration test.
 
 The resulting architecture is:
 
@@ -1293,29 +1319,31 @@ Result:
 ### Navigation
 
 ```text
-/amr_controller/goal
-/navigation_cmd
+/amr_controller/goal       geometry_msgs/msg/Pose2D
+/navigation_cmd            geometry_msgs/msg/TwistStamped
 ```
 
 ### Obstacle handling
 
 ```text
-/scan
-/obstacle_status
-/avoidance_cmd
+/scan                      sensor_msgs/msg/LaserScan
+/obstacle_status           amr_interfaces/msg/ObstacleStatus
+/avoidance_cmd             geometry_msgs/msg/TwistStamped
 ```
 
 ### Final velocity command
 
 ```text
-/cmd_vel
+/cmd_vel                   geometry_msgs/msg/TwistStamped
 ```
 
 ### Robot state
 
 ```text
-/odom
+/odom                      nav_msgs/msg/Odometry
 ```
+
+The simulation bridge maps ROS 2 `/cmd_vel` `TwistStamped` messages to the Gazebo `Twist` interface.
 
 ---
 
@@ -1412,8 +1440,6 @@ M8  Perception
         ▼
 M9  Real Robot Deployment
 ```
-
-The current implementation is complete through **M4.5**.
 
 ---
 
@@ -1647,11 +1673,13 @@ Through this project, the following concepts are being developed:
 
 # 25. Current Project Milestone
 
-**Current milestone: M4.5 — Full System Integration ✓**
+**Current milestone: Full System Integration ✓**
 
 The robot can currently:
 
 ```text
+Mission Control GUI
+        ↓
 Receive a patrol mission
         ↓
 Execute waypoint navigation
@@ -1672,10 +1700,6 @@ Resume navigation
         ↓
 Complete the mission
 ```
-
-The next major milestone is:
-
-> **M5 — SLAM & Localization**
 
 ---
 
