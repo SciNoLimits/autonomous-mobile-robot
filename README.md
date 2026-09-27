@@ -6,6 +6,8 @@ The project progressively develops an autonomous mobile robot from a custom feed
 
 The system is designed with a modular ROS 2 architecture so that individual components can be developed, tested, and replaced independently.
 
+https://github.com/user-attachments/assets/5fda28c2-00ee-48e1-afee-3ccf8826629c
+
 ---
 
 ## Project Status
