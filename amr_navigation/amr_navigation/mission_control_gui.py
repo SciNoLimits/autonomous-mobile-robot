@@ -7,6 +7,7 @@ import yaml
 import tkinter as tk
 from tkinter import messagebox, ttk
 
+from ament_index_python.packages import get_package_share_directory
 import rclpy
 from rclpy.action import ActionClient
 
@@ -80,8 +81,11 @@ class MissionControlGUI:
         # Load configuration
         # --------------------------------------------------
 
-        self.config_file = os.path.expanduser(
-            '~/amr_ws/src/autonomous-mobile-robot/amr_navigation/config/patrol.yaml'
+        package_share_directory = get_package_share_directory('amr_navigation')
+        self.config_file = os.path.join(
+            package_share_directory,
+            'config',
+            'patrol.yaml',
         )
 
         self.waypoints = []
